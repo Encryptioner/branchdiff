@@ -20,74 +20,45 @@ branchdiff main feat →  no diff     (same content — correct)
 
 If two branches reached the same file state via different commits (rebase, cherry-pick, squash), `git diff` shows noise. branchdiff compares what files **actually are** at each branch tip.
 
-### What VSCode "Compare with Branch" misses
-
-VSCode file-level diff is correct, but:
-- One file at a time — no overview across the whole branch
-- IDE-only — not usable from terminal or headless
-
-### The gap branchdiff fills
-
-| Tool | Browser | File-level diff | Tab completion | All files |
-|------|---------|----------------|----------------|-----------|
-| `git diff` | No | No | No | Yes |
-| `diff2html-cli` | Yes | No | No | Yes |
-| VSCode Compare | Yes | Yes | No | One at a time |
-| **branchdiff** | Yes | Yes | Yes | Yes |
-
----
-
-## Initial Requirements
-
-1. Compare all tracked files between two git branches (gitignored auto-excluded)
-2. File-level diff — compare content at branch tip, not commit ancestry
-3. Git-level diff mode available as fallback (`--mode git`)
-4. Browser UI — localhost server, auto-opens on start
-5. Tab completion for branch names in interactive CLI
-6. Single branch shorthand — `branchdiff feat` = current branch vs feat
-7. `origin/branch` remote refs supported
-8. Multiple simultaneous instances — different ports or URL params
-9. Large diff guard — show "Load diff" button instead of freezing browser
-10. Continuous scroll — all file diffs visible without clicking
-
----
-
-## What Is Done
-
-- [x] CLI with interactive branch prompts + readline tab completion
-- [x] File-level diff via `git ls-tree` + `git show` (no checkout needed)
-- [x] Git-level diff mode via `git diff branch1..branch2`
-- [x] Express HTTP server with REST API
-- [x] Browser UI — continuous scroll, all diffs stacked
-- [x] Folder tree sidebar with collapse/expand
-- [x] Lazy-load diffs via IntersectionObserver (400–500px lookahead)
-- [x] Large diff guard (>1500 patch lines → "Load diff" button)
-- [x] "Viewed" checkbox per file
-- [x] Sticky file block headers
-- [x] Split / Unified view toggle
-- [x] File / Git mode toggle (per session)
-- [x] Search/filter in sidebar
-- [x] URL query params (`?b1=main&b2=feat&mode=file`) — bookmarkable, multi-instance
-- [x] Scroll spy — sidebar highlights active file as you scroll
-- [x] `origin/branch` remote ref support (full ref preserved, not stripped)
-- [x] Binary file detection (null byte heuristic)
-- [x] Diffity-inspired light mode UI
-
 ---
 
 ## Architecture
 
 ```
 branchdiff/
-├── bin/
-│   └── branchdiff.js     CLI entry — arg parsing, interactive prompts, starts server
-├── src/
-│   ├── git.js            Git operations (no git library — raw execSync)
-│   └── server.js         Express server + API routes
-├── public/
-│   └── index.html        Single-page app (vanilla JS, diff2html via CDN)
-└── docs/
-    └── OVERVIEW.md       This file
+├── packages/
+│   ├── cli/              CLI + HTTP server (esbuild bundle)
+│   │   ├── src/
+│   │   │   ├── index.ts        Commander CLI entry
+│   │   │   ├── server.ts       Node HTTP server + API routes
+│   │   │   ├── review-routes.ts Thread/comment + export + agent routes
+│   │   │   ├── threads.ts      SQLite-backed thread/comment storage
+│   │   │   ├── session.ts      Session management
+│   │   │   └── ...
+│   │   └── build.ts           esbuild config
+│   ├── git/              Git operations package
+│   │   └── src/
+│   │       ├── blob-diff.ts    File-level diff (blob hash comparison)
+│   │       ├── diff.ts         Standard git diff operations
+│   │       ├── repo.ts         Repo info, branch detection
+│   │       ├── tree.ts         File tree operations
+│   │       └── ...
+│   ├── parser/           Diff output parser
+│   │   └── src/parse.ts        Unified diff → structured data
+│   ├── github/           GitHub PR integration
+│   └── ui/               React Router 7 SPA (Vite)
+│       └── src/
+│           ├── routes/diff.ts  Diff page with branch comparison
+│           ├── queries/        TanStack Query options
+│           ├── hooks/          Data hooks (useDiff, useBranchComparison)
+│           └── components/     React components
+├── scripts/
+│   └── build.ts          Monorepo build orchestration
+├── docs/
+│   ├── OVERVIEW.md       This file
+│   ├── PLAN.md           Full build plan
+│   └── SPEC.md           Feature specification
+└── pnpm-workspace.yaml
 ```
 
 ### Data flow
@@ -96,18 +67,22 @@ branchdiff/
 CLI args / interactive prompt
         │
         ▼
-  findGitRoot(cwd)          ← git rev-parse --show-toplevel
+  startServer({ diffArgs, branch1, branch2, mode })
         │
-        ▼
-  getBranches(cwd)          ← git branch -a (universal, no format string)
+        ├── Branch comparison mode (mode=file):
+        │   ├── GET /api/compare?b1=X&b2=Y     file list with statuses
+        │   ├── GET /api/file-diff?b1=X&b2=Y&file=PATH  per-file patch
+        │   └── GET /api/branches               branch list for UI
         │
-        ▼
-  startServer({ b1, b2, port, mode, cwd })
+        ├── Working tree mode (default):
+        │   ├── GET /api/diff?ref=X              unified diff
+        │   ├── GET /api/overview                file status overview
+        │   └── GET /api/info                    repo metadata
         │
-        ├── GET /api/config           session defaults
-        ├── GET /api/compare          file list with statuses
-        ├── GET /api/file-diff        per-file patch
-        └── GET /api/branches         branch list for UI
+        └── Shared:
+            ├── GET /api/config                  session config
+            ├── GET /api/threads/export          comment export (JSON/Markdown)
+            └── Agent endpoints                  AI agent integration
 ```
 
 ---
@@ -129,142 +104,76 @@ git ls-tree -r branch2
 
 `getBlobMap(branch)` returns `{ filePath → { hash, mode } }`. Comparing maps is O(n) on file count — only files with different hashes get their content fetched.
 
-Content fetch: `git show "branch:path/to/file"` — works without checkout, resolves remote refs (`origin/stage/prod`) via `refs/remotes/`.
-
-Diff generation: npm `diff` package → `createTwoFilesPatch()` → unified patch format → diff2html renders in browser.
-
-### 2. Remote branch refs — the stripping bug to avoid
-
-**Wrong approach:** strip `origin/` → store `stage/prod` → `git ls-tree "stage/prod"` → resolves local ref → fails for remote-only branches → returns empty map → every file appears deleted.
-
-**Right approach:** keep `origin/stage/prod` in the branch list. Git resolves `origin/stage/prod` → `refs/remotes/origin/stage/prod` automatically in all git commands.
-
-```js
-// In getBranches():
-const name = b.startsWith('remotes/')
-  ? b.slice('remotes/'.length)   // "remotes/origin/feat" → "origin/feat"
-  : b;                           // local branch unchanged
-```
-
-### 3. Tab completion
-
-Node's built-in `readline.createInterface` accepts a `completer` function:
-
-```js
-completer(line) {
-  const hits = branches.filter(b => b.startsWith(line));
-  return [hits.length ? hits : branches, line];
-}
-```
-
-No extra dependencies. Tab = complete unambiguous. Tab×2 = list all matches.
-
-### 4. Single-branch shorthand
+### 2. Dual mode: file-level + git-level
 
 ```
-branchdiff feat          →  b1 = currentBranch, b2 = feat
-branchdiff main feat     →  b1 = main, b2 = feat
-branchdiff (no args)     →  interactive prompt for both
+branchdiff main feat --mode file   # blob hash comparison (default, fast)
+branchdiff main feat --mode git    # git diff (commit ancestry, standard)
 ```
 
-Detected by: `branch1 && !branch2` after Commander parses args.
+File mode skips identical content regardless of history. Git mode shows commit-level changes.
 
-### 5. Lazy loading — IntersectionObserver
+### 3. AI-friendly comment export
 
-All file blocks render immediately as DOM (loading spinner state). Actual diff fetch triggers only when a block enters the viewport + 500px margin:
-
-```js
-const observer = new IntersectionObserver(entries => {
-  for (const entry of entries) {
-    if (entry.isIntersecting && block.dataset.loaded === 'false') {
-      fetchAndRender(block);
-      observer.unobserve(block);
-    }
-  }
-}, { root: mainScrollEl, rootMargin: '500px' });
-```
-
-`root: mainScrollEl` is critical — without it, IntersectionObserver uses viewport, which ignores the fixed header offset.
-
-### 6. Multi-instance via URL params
-
-Server bakes `b1`/`b2` into session config, but UI reads URL params first:
+Comments support severity tags (`[must-fix]`, `[suggestion]`, `[nit]`, `[question]`) and export:
 
 ```
-http://localhost:7823/?b1=main&b2=feat&mode=file
-http://localhost:7824/?b1=main&b2=hotfix&mode=git   ← different port
+GET /api/threads/export?session=X&format=json     → structured JSON
+GET /api/threads/export?session=X&format=markdown  → markdown summary
+GET /api/threads/export?session=X&status=open      → only open threads
 ```
 
-Server prints the full URL with params on start. Browser history updated via `history.replaceState` to make URLs bookmarkable.
-
-### 7. Folder tree sidebar
-
-Flat `{ path, status }[]` → nested tree via recursive split on `/`:
-
+Agent endpoints for AI integration:
 ```
-src/components/Button.vue  →  { dirs: { src: { dirs: { components: { files: [Button.vue] } } } } }
+POST /api/agent/comment     → AI posts review comment
+GET  /api/agent/threads     → AI reads all threads
+POST /api/agent/resolve     → AI marks thread resolved
 ```
-
-Rendered recursively with `depth * 12` px left padding per level. Folder collapse state tracked in `Set<string>` of closed folder paths — survives search re-renders.
-
-### 8. Large diff guard
-
-After fetch, count patch lines. If `> 1500`:
-- Show line count + `+added −removed` stats
-- Show "Load diff" button
-- Cache patch on `block.dataset.patch` so clicking Load doesn't re-fetch
-
-Threshold chosen to avoid freezing browser on lock files, generated code, etc.
 
 ---
 
 ## API Routes
 
+### Branch comparison routes
 | Method | Path | Query params | Returns |
 |--------|------|--------------|---------|
-| GET | `/api/config` | — | `{ branch1, branch2, mode, repoName }` |
-| GET | `/api/compare` | `b1`, `b2` | `{ files: [{path, status}], total }` |
-| GET | `/api/file-diff` | `b1`, `b2`, `file`, `diffMode` | `{ patch, mode }` or `{ binary: true }` |
 | GET | `/api/branches` | — | `{ branches, current }` |
+| GET | `/api/compare` | `b1`, `b2` | `{ files, total, summary }` |
+| GET | `/api/file-diff` | `b1`, `b2`, `file` | `{ patch, files, content1, content2 }` |
+| GET | `/api/config` | `b1`, `b2`, `mode` | `{ branch1, branch2, mode, repoName }` |
 
----
+### Working tree routes (from Diffity)
+| Method | Path | Returns |
+|--------|------|---------|
+| GET | `/api/diff` | Unified diff for working tree or ref |
+| GET | `/api/info` | Repo metadata |
+| GET | `/api/overview` | File status overview |
 
-## Dependencies
-
-| Package | Purpose |
-|---------|---------|
-| `express` | HTTP server |
-| `diff` | Unified patch generation (`createTwoFilesPatch`) |
-| `commander` | CLI arg parsing |
-| `diff2html` (CDN) | Patch rendering in browser |
-
-Zero runtime dependencies for git operations — all via `execSync` on the system git binary.
-
----
-
-## Known Limitations / Future Work
-
-- **Rename detection** — shows as delete + add; `git diff --find-renames` not yet integrated
-- **Working tree comparison** — branch-to-branch only; could add `HEAD` or unstaged support
-- **Binary files** — detected by null-byte heuristic, shown as "Binary file" with no diff
-- **Syntax highlighting** — depends on diff2html's built-in highlight.js; no custom language config
-- **Auth / multi-repo server** — currently single-repo per server instance
+### Comment routes
+| Method | Path | Returns |
+|--------|------|---------|
+| GET | `/api/threads/export` | JSON or Markdown export |
+| GET | `/api/agent/threads` | All threads for session |
+| POST | `/api/agent/comment` | Create agent comment |
+| POST | `/api/agent/resolve` | Resolve thread |
 
 ---
 
 ## Usage Reference
 
 ```bash
-# Install
+# Build
 pnpm install
-pnpm link --global        # makes `branchdiff` available globally
+pnpm build
 
 # Run (from inside any git repo)
-branchdiff                       # interactive — Tab completes branch names
-branchdiff feat                  # current branch vs feat
-branchdiff main feat             # explicit both
-branchdiff origin/stage/prod     # remote ref
-branchdiff main feat --mode git  # commit-level diff
-branchdiff main feat --port 7824 # custom port (for multi-instance)
-branchdiff main feat --no-open   # don't auto-open browser
+branchdiff                              # see all uncommitted changes
+branchdiff main                         # current branch vs main
+branchdiff main feat                    # branch comparison (file-level)
+branchdiff main feat --mode git         # commit-level diff
+branchdiff origin/stage/prod            # remote ref
+branchdiff main feat --port 7824        # custom port
+branchdiff main feat --no-open          # don't auto-open browser
+branchdiff main feat --dark --unified   # dark mode, unified view
+branchdiff tree                         # file browser mode
 ```

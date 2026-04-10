@@ -1,78 +1,107 @@
 # branchdiff
 
-Visual file-level git branch diff in your browser. Inspired by [Diffity](https://github.com/kamranahmedse/diffity).
+Visual file-level git branch diff in your browser.
 
-## The problem it solves
+> Inspired by [Diffity](https://github.com/kamranahmedse/diffity)
 
-`git diff branch1..branch2` compares **commit history divergence**, not file content.
-If two branches reached the same file state via different commits, `git diff` shows noise. `branchdiff --mode file` compares what the files actually *are* at each branch tip — content truth, not history.
+## Why branchdiff?
+
+`git diff branch1..branch2` compares **commit ancestry**, not file content. If two branches reached the same state via different histories (rebase, cherry-pick, squash), git diff shows noise.
+
+branchdiff compares blob hashes at each branch tip — identical content is silently skipped, regardless of history.
 
 ```
 main:  A → B → C → D   (file.js = "hello world")
 feat:  A → X → Y       (file.js = "hello world")
 
-git diff main..feat  →  shows diff  (different commit paths)
-branchdiff main feat →  no diff     (same content)
+git diff main..feat  →  shows diff  (wrong: different commit paths)
+branchdiff main feat →  no diff     (correct: same content)
 ```
 
 ## Install
 
 ```bash
-cd branchdiff
 pnpm install
-pnpm link --global   # makes `branchdiff` available globally
+pnpm build
+pnpm link --global    # makes `branchdiff` available globally
 ```
 
 ## Usage
 
 ```bash
-# Interactive — Tab to complete branch names
-branchdiff
-
-# Direct
-branchdiff main feat
-
-# Git diff mode (commit-level, classic behavior)
-branchdiff main feat --mode git
-
-# Custom port
-branchdiff main feat --port 3456
-
-# Don't auto-open browser
-branchdiff main feat --no-open
+branchdiff                              # all uncommitted changes
+branchdiff main                         # current branch vs main
+branchdiff main feat                    # branch comparison (file-level)
+branchdiff main feat --mode git         # commit-level diff
+branchdiff main feat --mode file        # blob hash comparison (default)
+branchdiff origin/stage/prod            # remote refs supported
+branchdiff main feat --dark --unified   # dark mode, unified view
+branchdiff tree                         # file browser
 ```
+
+### CLI flags
+
+| Flag | Description |
+|------|-------------|
+| `--mode <file\|git>` | Diff mode: file (blob hashes) or git (commit ancestry) |
+| `--base <ref>` | Base branch to compare from |
+| `--compare <ref>` | Branch to compare against |
+| `--port <port>` | Port (default: auto-assigned from 5391) |
+| `--no-open` | Don't auto-open browser |
+| `--dark` | Open in dark mode |
+| `--unified` | Open in unified view |
+| `--quiet` | Minimal terminal output |
 
 ## Features
 
-- **File-level diff** (default): compares actual file content at each branch tip, ignoring commit history
-- **Git diff mode** (`--mode git`): classic commit-history-aware diff
-- **Tab completion**: type branch name prefix, press Tab to complete
-- **Browser UI**: file list with status indicators, side-by-side and unified diff views
-- **Per-file mode toggle**: switch between file/git diff per file in the UI
-- **Search**: filter the file list by path
-- **Fast**: uses git blob hashes to skip identical files — only fetches content for changed files
+- **File-level diff** — compares blob hashes, skips identical content
+- **Git-level diff** — standard `git diff` as fallback
+- **Browser UI** — React SPA with split/unified views, syntax highlighting
+- **Comment system** — add review comments with severity tags (`[must-fix]`, `[suggestion]`, `[nit]`, `[question]`)
+- **AI export** — export comments as JSON or Markdown for AI consumption
+- **Agent API** — AI agents can post and resolve comments
+- **Keyboard shortcuts** — j/k for file nav, h/l for hunk nav
+- **File tree sidebar** — with status badges (A/M/D) and search filter
+- **Multiple instances** — different repos on different ports
+- **GitHub PR integration** — push/pull review comments to GitHub
 
 ## How it works
 
 ```
 git ls-tree -r branch   →  blob hash per file (fast equality check)
 git show branch:path    →  file content at branch tip (no checkout needed)
-diff(content_a, b)      →  unified patch → diff2html renders in browser
+diff(content_a, b)      →  unified patch → rendered in browser
 ```
 
-Gitignored files are excluded by default (git ls-tree only returns tracked files).
+## Architecture
 
-## Limitations
+pnpm monorepo with 5 packages:
 
-- Binary files: shown as "binary file, no text diff"
-- Rename detection: not yet implemented (shows as delete + add)
-- Working tree comparison: not yet supported (branch-to-branch only)
+```
+packages/
+├── cli/      CLI + HTTP server (Node, esbuild)
+├── git/      Git operations (raw git CLI, no library)
+├── parser/   Unified diff parser
+├── github/   GitHub PR integration
+└── ui/       React Router 7 SPA (Vite, TanStack Query)
+```
+
+## Development
+
+```bash
+pnpm install
+pnpm build
+```
 
 ## Comparison with similar tools
 
-| Tool | Browser | File-level diff | Tab completion | All files |
-|------|---------|----------------|----------------|-----------|
-| `git diff` | No | No | No | Yes |
-| `diff2html-cli` | Yes | No | No | Yes |
-| VSCode Compare | Yes | Yes | No | One at a time |
+| Tool | Browser | File-level diff | All files | Comments |
+|------|---------|----------------|-----------|----------|
+| `git diff` | No | No | Yes | No |
+| `diff2html-cli` | Yes | No | Yes | No |
+| VSCode Compare | Yes | Yes | One at a time | No |
 | **branchdiff** | Yes | Yes | Yes | Yes |
+
+## License
+
+MIT
