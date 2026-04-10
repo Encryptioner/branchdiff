@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useLoaderData } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDiff } from '../../hooks/use-diff';
+import { useBranchComparison } from '../../hooks/use-branch-comparison';
 import { useInfo } from '../../hooks/use-info';
 import { useTheme } from '../../hooks/use-theme';
 import { useKeyboard } from '../../hooks/use-keyboard';
@@ -23,18 +24,55 @@ import type { LineSelection } from '../comments/types';
 import { isThreadResolved } from '../comments/types';
 
 export function DiffPage() {
-  const { ref: refParam, theme: initialTheme, view: initialViewMode } = useLoaderData<{
+  const loaderData = useLoaderData<{
     ref: string;
     theme: 'light' | 'dark' | null;
     view: 'split' | 'unified' | null;
+    b1: string | null;
+    b2: string | null;
+    mode: 'file' | 'git';
   }>();
+
+  const { ref: refParam, theme: initialTheme, view: initialViewMode, b1, b2, mode } = loaderData;
+  const isBranchComparison = !!(b1 && b2);
 
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode || 'split');
   const [hideWhitespace, setHideWhitespace] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const { theme, toggleTheme } = useTheme(initialTheme);
-  const { data: diff, error } = useDiff(hideWhitespace, refParam);
+
+  // Regular diff or branch comparison mode
+  const regularDiff = useDiff(hideWhitespace, refParam);
+  const branchDiff = useBranchComparison(b1!, b2!);
+
   const { data: info } = useInfo(refParam);
+
+  // Normalize branch comparison data to ParsedDiff-like format
+  const diff = isBranchComparison
+    ? (() => {
+        const { data: branchData, error: branchError } = branchDiff;
+        if (branchError || !branchData) return regularDiff.data;
+        return {
+          files: branchData.files.map(f => ({
+            oldPath: f.status === 'added' ? '/dev/null' : f.path,
+            newPath: f.status === 'deleted' ? '/dev/null' : f.path,
+            status: f.status as 'added' | 'modified' | 'deleted',
+            hunks: [],
+            additions: 0,
+            deletions: 0,
+            isBinary: false,
+            oldFileLineCount: null,
+          })),
+          stats: {
+            totalAdditions: 0,
+            totalDeletions: 0,
+            filesChanged: branchData.total,
+          },
+        };
+      })()
+    : regularDiff.data;
+
+  const error = isBranchComparison ? branchDiff.error : regularDiff.error;
   const [activeFile, setActiveFile] = useState<string | null>(null);
   const [reviewedFiles, setReviewedFiles] = useState<Set<string>>(new Set());
   const [collapsedFiles, setCollapsedFiles] = useState<Set<string>>(new Set());
@@ -304,23 +342,29 @@ export function DiffPage() {
     return <PageLoader />;
   }
 
-  if (diff.files.length === 0) {
+  if (diff?.files.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-bg text-text font-sans gap-2">
         <div className="text-added opacity-40 mb-1">
           <CheckCircleIcon />
         </div>
         <h2 className="text-base font-medium text-text-secondary">No changes found</h2>
-        <p className="text-xs text-text-muted">There are no differences to display.</p>
-        <div className="mt-4 flex flex-col gap-1.5 items-center">
-          <p className="text-xs text-text-muted mb-1">Try one of these</p>
-          <code className="inline-block px-3 py-1 bg-bg-secondary border border-border rounded-md font-mono text-xs text-text">
-            branchdiff HEAD~1
-          </code>
-          <code className="inline-block px-3 py-1 bg-bg-secondary border border-border rounded-md font-mono text-xs text-text">
-            branchdiff main..feature
-          </code>
-        </div>
+        <p className="text-xs text-text-muted">
+          {isBranchComparison
+            ? `${b1} and ${b2} have identical file content.`
+            : 'There are no differences to display.'}
+        </p>
+        {!isBranchComparison && (
+          <div className="mt-4 flex flex-col gap-1.5 items-center">
+            <p className="text-xs text-text-muted mb-1">Try one of these</p>
+            <code className="inline-block px-3 py-1 bg-bg-secondary border border-border rounded-md font-mono text-xs text-text">
+              branchdiff HEAD~1
+            </code>
+            <code className="inline-block px-3 py-1 bg-bg-secondary border border-border rounded-md font-mono text-xs text-text">
+              branchdiff main feature
+            </code>
+          </div>
+        )}
       </div>
     );
   }
@@ -341,8 +385,8 @@ export function DiffPage() {
         onDeleteAllComments={commentActions.deleteAllThreads}
         onScrollToThread={handleScrollToThread}
         repoName={info?.name || null}
-        branch={info?.branch || null}
-        description={info?.description || null}
+        branch={isBranchComparison ? `${b1} ↔ ${b2}` : (info?.branch || null)}
+        description={isBranchComparison ? `${mode}-level diff` : (info?.description || null)}
         githubDetails={githubDetails}
         sessionId={sessionId}
         onGitHubPulled={() => queryClient.invalidateQueries({ queryKey: ['threads'] })}

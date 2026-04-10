@@ -307,3 +307,55 @@ export async function fetchTreeFileContent(filePath: string): Promise<string[]> 
   );
   return json.content;
 }
+
+// ── Branch comparison API ──
+
+export interface BranchDiffFile {
+  path: string;
+  status: 'added' | 'modified' | 'deleted';
+}
+
+export interface BranchComparison {
+  files: BranchDiffFile[];
+  total: number;
+  summary: {
+    added: number;
+    modified: number;
+    deleted: number;
+  };
+}
+
+export interface FileDiff {
+  patch: string;
+  files: ParsedDiff;
+  content1: string | null;
+  content2: string | null;
+}
+
+export interface BranchList {
+  branches: string[];
+  current: string;
+}
+
+export interface BranchConfig {
+  branch1: string;
+  branch2: string;
+  mode: 'file' | 'git';
+  repoName: string;
+}
+
+export function fetchBranches(): Promise<BranchList> {
+  return apiFetch('/api/branches');
+}
+
+export function fetchBranchComparison(b1: string, b2: string): Promise<BranchComparison> {
+  return apiFetch(buildUrl('/api/compare', { b1, b2 }));
+}
+
+export function fetchFileDiff(b1: string, b2: string, file: string): Promise<FileDiff> {
+  return apiFetch(buildUrl('/api/file-diff', { b1, b2, file }));
+}
+
+export function fetchBranchConfig(b1?: string, b2?: string, mode?: string): Promise<BranchConfig> {
+  return apiFetch(buildUrl('/api/config', { b1, b2, mode }));
+}
