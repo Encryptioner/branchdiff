@@ -1,0 +1,34 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build output
+dist
+dist-ssr
+
+# Test output
+coverage
+playwright-report
+test-results
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Editor
+.vscode
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Vite / TS cache
+*.tsbuildinfo
+vite.config.ts.timestamp-*

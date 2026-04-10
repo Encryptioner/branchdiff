@@ -1,0 +1,21 @@
+{
+  "name": "branchdiff",
+  "version": "0.1.0",
+  "description": "Visual file-level git branch diff in your browser — content-aware, not commit-history-aware",
+  "bin": {
+    "branchdiff": "./bin/branchdiff.js"
+  },
+  "scripts": {
+    "start": "node bin/branchdiff.js",
+    "link": "pnpm link --global"
+  },
+  "packageManager": "pnpm@latest",
+  "dependencies": {
+    "commander": "^12.0.0",
+    "diff": "^5.2.0",
+    "express": "^4.18.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

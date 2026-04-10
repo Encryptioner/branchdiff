@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>branchdiff</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/diff2html@3.4.48/bundles/css/diff2html.min.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #ffffff;
+      --bg2:     #f6f8fa;
+      --bg3:     #eaecf0;
+      --border:  #d0d7de;
+      --text:    #1f2328;
+      --text2:   #656d76;
+      --text3:   #8b949e;
+      --accent:  #0969da;
+      --hover:   #f3f4f6;
+      --shadow:  0 1px 3px rgba(0,0,0,.08);
+
+      --added-bg:    rgba(31,136,61,.12);
+      --added-fg:    #1a7f37;
+      --deleted-bg:  rgba(207,34,46,.12);
+      --deleted-fg:  #cf222e;
+      --modified-bg: rgba(154,103,0,.12);
+      --modified-fg: #9a6700;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 14px;
+      height: 40px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .logo {
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--accent);
+      letter-spacing: -0.3px;
+      flex-shrink: 0;
+    }
+
+    .branches {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      font-family: 'SF Mono', 'Fira Mono', monospace;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 2px 8px;
+    }
+    .branch-base    { color: #0550ae; font-weight: 500; }
+    .branch-compare { color: #0550ae; font-weight: 500; }
+    .arrow          { color: var(--text3); }
+
+    .hdr-stat { font-size: 11px; color: var(--text3); }
+
+    .seg-ctrl {
+      display: flex;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 2px;
+      gap: 1px;
+    }
+    .seg-ctrl button {
+      background: transparent;
+      border: none;
+      color: var(--text2);
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .seg-ctrl button.active {
+      background: var(--bg);
+      color: var(--text);
+      box-shadow: var(--shadow);
+    }
+    .ml-auto { margin-left: auto; }
+
+    /* ── Layout ──────────────────────────────────────────────────────────── */
+    .layout { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── Sidebar ─────────────────────────────────────────────────────────── */
+    aside {
+      width: 272px;
+      min-width: 272px;
+      border-right: 1px solid var(--border);
+      background: var(--bg2);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .sidebar-head .label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--text3);
+    }
+    .sidebar-head .count { color: var(--text2); font-weight: 400; }
+
+    .search-wrap {
+      position: relative;
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .search-icon {
+      position: absolute;
+      left: 17px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text3);
+      pointer-events: none;
+    }
+    .search-wrap input {
+      width: 100%;
+      height: 28px;
+      padding: 0 24px 0 26px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 12px;
+      outline: none;
+      font-family: inherit;
+    }
+    .search-wrap input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(9,105,218,.15); }
+    .search-wrap input::placeholder { color: var(--text3); }
+
+    .file-tree { overflow-y: auto; flex: 1; padding: 4px 0; }
+
+    /* Folder row */
+    .tree-folder {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      width: 100%;
+      padding: 3px 8px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text2);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .tree-folder:hover { background: var(--hover); }
+    .tree-folder .chevron {
+      flex-shrink: 0;
+      width: 14px;
+      height: 14px;
+      color: var(--text3);
+      transition: transform .12s;
+    }
+    .tree-folder.closed .chevron { transform: rotate(-90deg); }
+    .tree-folder .folder-icon { flex-shrink: 0; width: 14px; height: 14px; color: var(--text3); }
+    .tree-folder .folder-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tree-folder-children { }
+    .tree-folder-children.hidden { display: none; }
+
+    /* File row */
+    .tree-file {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      width: 100%;
+      padding: 3px 8px 3px 0;
+      text-align: left;
+      font-size: 12px;
+      color: var(--text);
+      background: transparent;
+      border: none;
+      border-left: 2px solid transparent;
+      cursor: pointer;
+      font-family: 'SF Mono', 'Fira Mono', monospace;
+    }
+    .tree-file:hover { background: var(--hover); color: var(--text); }
+    .tree-file.active { border-left-color: var(--accent); background: rgba(9,105,218,.06); }
+
+    .status-badge {
+      flex-shrink: 0;
+      width: 18px;
+      height: 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      font-family: 'SF Mono', 'Fira Mono', monospace;
+    }
+    .status-badge.modified { background: var(--modified-bg); color: var(--modified-fg); }
+    .status-badge.added    { background: var(--added-bg);    color: var(--added-fg); }
+    .status-badge.deleted  { background: var(--deleted-bg);  color: var(--deleted-fg); }
+
+    .file-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── Main scroll ─────────────────────────────────────────────────────── */
+    main { flex: 1; overflow-y: auto; background: var(--bg); padding-bottom: 48px; }
+
+    /* ── File diff block ─────────────────────────────────────────────────── */
+    .file-block {
+      margin: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      overflow: hidden;
+    }
+
+    .block-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+
+    .block-toggle {
+      flex-shrink: 0;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: var(--text3);
+    }
+    .block-toggle:hover { background: var(--hover); color: var(--text); }
+    .block-toggle svg { width: 12px; height: 12px; transition: transform .12s; }
+    .file-block.collapsed .block-toggle svg { transform: rotate(-90deg); }
+    .file-block.collapsed .block-body { display: none; }
+
+    .block-path {
+      flex: 1;
+      font-family: 'SF Mono', 'Fira Mono', monospace;
+      font-size: 11px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--text);
+      cursor: pointer;
+      background: none;
+      border: none;
+    }
+    .block-path:hover { color: var(--accent); }
+    .block-path .path-dir { color: var(--text3); }
+
+    .block-stats { font-size: 11px; flex-shrink: 0; display: flex; gap: 5px; }
+    .block-stats .a { color: var(--added-fg); }
+    .block-stats .d { color: var(--deleted-fg); }
+
+    .viewed-wrap { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+    .viewed-wrap label { font-size: 11px; color: var(--text3); cursor: pointer; user-select: none; }
+    .viewed-wrap input[type=checkbox] { cursor: pointer; accent-color: var(--accent); }
+    .file-block.viewed .block-header { opacity: .6; }
+
+    /* ── Block body states ───────────────────────────────────────────────── */
+    .block-body { background: var(--bg); min-height: 40px; }
+
+    .block-state {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 8px;
+      padding: 18px;
+      font-size: 12px;
+      color: var(--text3);
+    }
+    .block-state.large { color: var(--text); }
+    .block-state .size-info { color: var(--text2); font-size: 12px; }
+
+    .load-btn {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 12px;
+      padding: 4px 14px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .load-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 13px; height: 13px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+
+    /* Page-level loading */
+    .page-load {
+      display: flex; align-items: center; justify-content: center;
+      height: 100%; gap: 8px; color: var(--text3); font-size: 13px;
+    }
+    .page-load .spinner { width: 16px; height: 16px; }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #b0b8c1; }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="logo">branchdiff</span>
+  <div class="branches">
+    <span class="branch-base"  id="hdr-b1">—</span>
+    <span class="arrow">→</span>
+    <span class="branch-compare" id="hdr-b2">—</span>
+  </div>
+  <span class="hdr-stat" id="hdr-stats"></span>
+
+  <div class="seg-ctrl ml-auto">
+    <button id="btn-side" onclick="setViewMode('side-by-side')">Split</button>
+    <button id="btn-line" onclick="setViewMode('line-by-line')">Unified</button>
+  </div>
+  <div class="seg-ctrl">
+    <button id="btn-file" onclick="setDiffMode('file')">File</button>
+    <button id="btn-git"  onclick="setDiffMode('git')">Git</button>
+  </div>
+</header>
+
+<div class="layout">
+  <aside>
+    <div class="sidebar-head">
+      <span class="label">Files <span class="count" id="file-count"></span></span>
+    </div>
+    <div class="search-wrap">
+      <svg class="search-icon" width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"/>
+      </svg>
+      <input type="text" id="search" placeholder="Filter files…" autocomplete="off" />
+    </div>
+    <div class="file-tree" id="file-tree">
+      <div class="page-load" style="height:60px"><div class="spinner"></div></div>
+    </div>
+  </aside>
+
+  <main id="main">
+    <div class="page-load"><div class="spinner"></div> Loading…</div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/diff2html@3.4.48/bundles/js/diff2html-ui.min.js"></script>
+<script>
+  const LARGE_LINES = 1500;
+
+  const urlP    = new URLSearchParams(location.search);
+  let config    = {};
+  let allFiles  = [];
+  let b1        = urlP.get('b1');
+  let b2        = urlP.get('b2');
+  let viewMode  = 'side-by-side';
+  let diffMode  = urlP.get('mode') || 'file';
+  let closedFolders = new Set(); // tracks collapsed folder paths
+
+  // ── Boot ──────────────────────────────────────────────────────────────────
+
+  async function boot() {
+    config  = await fetchJson('/api/config');
+    b1      = b1 || config.branch1;
+    b2      = b2 || config.branch2;
+    diffMode = diffMode || config.mode || 'file';
+
+    history.replaceState(null, '', `${location.pathname}?b1=${enc(b1)}&b2=${enc(b2)}&mode=${diffMode}`);
+
+    document.getElementById('hdr-b1').textContent = b1;
+    document.getElementById('hdr-b2').textContent = b2;
+    document.title = `${b1} → ${b2} · branchdiff`;
+
+    activateBtn('btn-' + (viewMode === 'side-by-side' ? 'side' : 'line'));
+    activateBtn('btn-' + diffMode);
+
+    await loadAll();
+  }
+
+  async function loadAll() {
+    const data = await fetchJson(`/api/compare?b1=${enc(b1)}&b2=${enc(b2)}`);
+    allFiles = data.files;
+
+    const added    = allFiles.filter(f => f.status === 'added').length;
+    const deleted  = allFiles.filter(f => f.status === 'deleted').length;
+    const modified = allFiles.filter(f => f.status === 'modified').length;
+    document.getElementById('file-count').textContent = `(${allFiles.length})`;
+    document.getElementById('hdr-stats').innerHTML =
+      `${allFiles.length} files &nbsp;` +
+      `<span style="color:var(--added-fg)">+${added}</span> &nbsp;` +
+      `<span style="color:var(--deleted-fg)">−${deleted}</span> &nbsp;` +
+      `<span style="color:var(--modified-fg)">~${modified}</span>`;
+
+    renderTree(allFiles);
+    renderBlocks(allFiles);
+    setupLazyLoad();
+    setupScrollSpy();
+  }
+
+  // ── Tree builder ──────────────────────────────────────────────────────────
+  // Groups flat file list into a nested folder tree, then renders it
+  // with collapsible folder rows and indented file rows.
+
+  function buildTree(files) {
+    const root = { dirs: {}, files: [] };
+    for (const f of files) {
+      const parts = f.path.split('/');
+      const name  = parts.pop();
+      let node = root;
+      let cumPath = '';
+      for (const seg of parts) {
+        cumPath = cumPath ? `${cumPath}/${seg}` : seg;
+        if (!node.dirs[seg]) node.dirs[seg] = { _path: cumPath, dirs: {}, files: [] };
+        node = node.dirs[seg];
+      }
+      node.files.push({ ...f, name });
+    }
+    return root;
+  }
+
+  function renderTree(files) {
+    const tree = buildTree(files);
+    document.getElementById('file-tree').innerHTML = treeHTML(tree, 0);
+  }
+
+  function treeHTML(node, depth) {
+    let html = '';
+    const indent = depth * 12 + 8; // px left padding for folder/file
+
+    // Folders first
+    for (const [name, child] of Object.entries(node.dirs).sort(([a],[b]) => a.localeCompare(b))) {
+      const closed = closedFolders.has(child._path) ? 'closed' : '';
+      const hidden = closed ? 'hidden' : '';
+      html += `
+        <button class="tree-folder ${closed}" data-fpath="${escHtml(child._path)}"
+          style="padding-left:${indent}px" onclick="toggleFolder(this)">
+          ${chevronSVG()}
+          ${folderSVG()}
+          <span class="folder-name">${escHtml(name)}</span>
+        </button>
+        <div class="tree-folder-children ${hidden}" data-fchildren="${escHtml(child._path)}">
+          ${treeHTML(child, depth + 1)}
+        </div>`;
+    }
+
+    // Then files
+    for (const f of [...node.files].sort((a,b) => a.name.localeCompare(b.name))) {
+      const idx = allFiles.findIndex(af => af.path === f.path);
+      html += `
+        <button class="tree-file" id="sidebar-${idx}" data-idx="${idx}"
+          style="padding-left:${indent + 4}px" onclick="jumpTo(${idx})">
+          <span class="status-badge ${f.status}">${f.status[0].toUpperCase()}</span>
+          <span class="file-label" title="${escHtml(f.path)}">${escHtml(f.name)}</span>
+        </button>`;
+    }
+
+    return html;
+  }
+
+  function toggleFolder(btn) {
+    const fpath    = btn.dataset.fpath;
+    const children = document.querySelector(`[data-fchildren="${fpath}"]`);
+    const isClose  = !btn.classList.contains('closed');
+    btn.classList.toggle('closed', isClose);
+    children?.classList.toggle('hidden', isClose);
+    if (isClose) closedFolders.add(fpath); else closedFolders.delete(fpath);
+  }
+
+  function chevronSVG() {
+    return `<svg class="chevron" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"/>
+    </svg>`;
+  }
+
+  function folderSVG() {
+    return `<svg class="folder-icon" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1Z"/>
+    </svg>`;
+  }
+
+  // ── Sidebar navigation ────────────────────────────────────────────────────
+
+  function jumpTo(idx) {
+    const block = document.getElementById(`block-${idx}`);
+    if (!block) return;
+    block.classList.remove('collapsed');
+    const main = document.getElementById('main');
+    main.scrollTo({ top: block.offsetTop - 8, behavior: 'smooth' });
+    setActiveSidebar(idx);
+  }
+
+  function setActiveSidebar(idx) {
+    document.querySelectorAll('.tree-file').forEach(el => el.classList.remove('active'));
+    document.getElementById(`sidebar-${idx}`)?.classList.add('active');
+    // Scroll sidebar item into view
+    document.getElementById(`sidebar-${idx}`)?.scrollIntoView({ block: 'nearest' });
+  }
+
+  // ── Scroll spy ────────────────────────────────────────────────────────────
+
+  function setupScrollSpy() {
+    const main = document.getElementById('main');
+    main.addEventListener('scroll', () => {
+      const scrollTop = main.scrollTop + 50;
+      let activeIdx = 0;
+      document.querySelectorAll('.file-block').forEach(b => {
+        if (b.offsetTop <= scrollTop) activeIdx = parseInt(b.dataset.idx);
+      });
+      setActiveSidebar(activeIdx);
+    }, { passive: true });
+  }
+
+  // ── Render all file blocks ────────────────────────────────────────────────
+
+  function renderBlocks(files) {
+    const main = document.getElementById('main');
+    if (!files.length) {
+      main.innerHTML = `<div class="page-load" style="color:var(--added-fg)">Branches are identical — no changed files.</div>`;
+      return;
+    }
+    main.innerHTML = files.map((f, i) => {
+      const parts = f.path.split('/');
+      const name  = parts.pop();
+      const dir   = parts.length ? parts.join('/') + '/' : '';
+      return `
+        <div class="file-block" id="block-${i}" data-idx="${i}" data-path="${escHtml(f.path)}" data-status="${f.status}" data-loaded="false">
+          <div class="block-header">
+            <button class="block-toggle" onclick="toggleBlock(${i})" title="Collapse">
+              <svg viewBox="0 0 16 16" fill="currentColor">
+                <path d="M12.78 5.22a.749.749 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.06 0L3.22 6.28a.749.749 0 1 1 1.06-1.06L8 8.939l3.72-3.719a.749.749 0 0 1 1.06 0Z"/>
+              </svg>
+            </button>
+            <button class="block-path" onclick="jumpSidebar(${i})" title="${escHtml(f.path)}">
+              <span class="path-dir">${escHtml(dir)}</span>${escHtml(name)}
+            </button>
+            <span class="block-stats" id="bstats-${i}"></span>
+            <label class="viewed-wrap">
+              <input type="checkbox" onchange="markViewed(${i}, this.checked)" />
+              <span>Viewed</span>
+            </label>
+          </div>
+          <div class="block-body" id="bbody-${i}">
+            <div class="block-state"><div class="spinner"></div></div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function toggleBlock(idx) {
+    document.getElementById(`block-${idx}`)?.classList.toggle('collapsed');
+  }
+
+  function markViewed(idx, checked) {
+    document.getElementById(`block-${idx}`)?.classList.toggle('viewed', checked);
+  }
+
+  function jumpSidebar(idx) {
+    setActiveSidebar(idx);
+    document.getElementById(`sidebar-${idx}`)?.scrollIntoView({ block: 'nearest' });
+  }
+
+  // ── Lazy-load diffs via IntersectionObserver ──────────────────────────────
+
+  function setupLazyLoad() {
+    const main = document.getElementById('main');
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          const block = entry.target;
+          if (block.dataset.loaded === 'false') {
+            block.dataset.loaded = 'pending';
+            observer.unobserve(block);
+            fetchAndRender(block);
+          }
+        }
+      }
+    }, { root: main, rootMargin: '500px' });
+
+    document.querySelectorAll('.file-block').forEach(b => observer.observe(b));
+  }
+
+  // ── Fetch + render a single diff ──────────────────────────────────────────
+
+  async function fetchAndRender(block, force = false) {
+    const filePath = block.dataset.path;
+    const idx      = block.dataset.idx;
+    const body     = document.getElementById(`bbody-${idx}`);
+    const statsEl  = document.getElementById(`bstats-${idx}`);
+
+    try {
+      const data = await fetchJson(
+        `/api/file-diff?b1=${enc(b1)}&b2=${enc(b2)}&file=${enc(filePath)}&diffMode=${enc(diffMode)}`
+      );
+      block.dataset.loaded = 'true';
+
+      if (data.binary) {
+        body.innerHTML = `<div class="block-state">Binary file</div>`;
+        return;
+      }
+      if (!data.patch?.trim()) {
+        body.innerHTML = `<div class="block-state" style="color:var(--added-fg)">Identical content</div>`;
+        return;
+      }
+
+      const lines   = data.patch.split('\n');
+      const added   = lines.filter(l => l.startsWith('+') && !l.startsWith('+++')).length;
+      const removed = lines.filter(l => l.startsWith('-') && !l.startsWith('---')).length;
+      statsEl.innerHTML =
+        `<span class="a">+${added}</span><span class="d">−${removed}</span>`;
+
+      if (!force && lines.length > LARGE_LINES) {
+        block.dataset.patch = data.patch;
+        body.innerHTML = `
+          <div class="block-state large">
+            <span class="size-info">${lines.length.toLocaleString()} lines &nbsp;·&nbsp;
+              <span style="color:var(--added-fg)">+${added}</span>
+              <span style="color:var(--deleted-fg)">−${removed}</span>
+            </span>
+            <button class="load-btn" onclick="forceLoad(${idx})">Load diff</button>
+          </div>`;
+        return;
+      }
+
+      block.dataset.patch = data.patch;
+      drawPatch(body, data.patch);
+    } catch (err) {
+      body.innerHTML = `<div class="block-state" style="color:var(--deleted-fg)">Error: ${escHtml(err.message)}</div>`;
+    }
+  }
+
+  function forceLoad(idx) {
+    const block = document.getElementById(`block-${idx}`);
+    const body  = document.getElementById(`bbody-${idx}`);
+    if (block.dataset.patch) {
+      drawPatch(body, block.dataset.patch);
+    } else {
+      body.innerHTML = `<div class="block-state"><div class="spinner"></div></div>`;
+      block.dataset.loaded = 'false';
+      fetchAndRender(block, true);
+    }
+  }
+
+  function drawPatch(container, patch) {
+    container.innerHTML = '';
+    const ui = new Diff2HtmlUI(container, patch, {
+      outputFormat: viewMode,
+      drawFileList: false,
+      matching: 'lines',
+      highlight: true,
+      renderNothingWhenEmpty: false,
+    });
+    ui.draw();
+    ui.highlightCode();
+  }
+
+  // ── Global mode toggles ───────────────────────────────────────────────────
+
+  function setViewMode(mode) {
+    viewMode = mode;
+    activateBtn(mode === 'side-by-side' ? 'btn-side' : 'btn-line');
+    // Re-draw all already-loaded patches with the new layout
+    document.querySelectorAll('.file-block[data-loaded="true"]').forEach(block => {
+      const patch = block.dataset.patch;
+      const body  = document.getElementById(`bbody-${block.dataset.idx}`);
+      if (patch && body) drawPatch(body, patch);
+    });
+  }
+
+  function setDiffMode(mode) {
+    diffMode = mode;
+    activateBtn('btn-' + mode);
+    // Reset all blocks so they re-fetch with new mode
+    document.querySelectorAll('.file-block').forEach(b => {
+      b.dataset.loaded = 'false';
+      b.dataset.patch  = '';
+      const body = document.getElementById(`bbody-${b.dataset.idx}`);
+      if (body) body.innerHTML = `<div class="block-state"><div class="spinner"></div></div>`;
+    });
+    setupLazyLoad();
+  }
+
+  // ── Search / filter ───────────────────────────────────────────────────────
+
+  document.getElementById('search').addEventListener('input', e => {
+    const q = e.target.value.toLowerCase();
+    const filtered = q ? allFiles.filter(f => f.path.toLowerCase().includes(q)) : allFiles;
+
+    // Re-render tree with filtered set (preserves folder structure)
+    renderTree(filtered);
+
+    // Show/hide main blocks
+    allFiles.forEach((f, i) => {
+      const block = document.getElementById(`block-${i}`);
+      if (block) block.style.display = filtered.some(ff => ff.path === f.path) ? '' : 'none';
+    });
+  });
+
+  // ── Utilities ─────────────────────────────────────────────────────────────
+
+  function activateBtn(id) {
+    [['btn-side','btn-line'],['btn-file','btn-git']].forEach(group => {
+      if (group.includes(id)) group.forEach(bid => {
+        document.getElementById(bid)?.classList.toggle('active', bid === id);
+      });
+    });
+  }
+
+  async function fetchJson(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  }
+
+  const enc     = s => encodeURIComponent(s);
+  const escHtml = s => String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+  boot().catch(err => {
+    document.getElementById('main').innerHTML =
+      `<div class="page-load" style="color:var(--deleted-fg)">Error: ${escHtml(err.message)}</div>`;
+  });
+</script>
+</body>
+</html>
