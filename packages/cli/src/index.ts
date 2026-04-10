@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import open from 'open';
 import pc from 'picocolors';
-import { isGitRepo, isValidGitRef, getRepoRoot, getRepoName, normalizeRef, WORKING_TREE_REFS } from '@branchdiff/git';
+import { isGitRepo, isValidGitRef, getRepoRoot, getRepoName, normalizeRef, getCurrentBranch, WORKING_TREE_REFS } from '@branchdiff/git';
 import {
   isGitHubPrUrl,
   parseGitHubPrUrl,
@@ -40,6 +40,7 @@ program
   .argument('[refs...]', 'Git refs to diff')
   .option('--base <ref>', 'Base ref to compare from (e.g. main, HEAD~3, v1.0.0)')
   .option('--compare <ref>', 'Ref to compare against base (default: working tree)')
+  .option('--mode <mode>', 'Diff mode: file (blob hash comparison) or git (commit-level)', 'file')
   .option('--port <port>', 'Port to use (default: auto-assigned from 5391)', '5391')
   .option('--no-open', 'Do not open browser automatically')
   .option('--quiet', 'Minimal terminal output')
@@ -53,12 +54,19 @@ Common usage:
   $ branchdiff HEAD~1                       Review your last commit
   $ branchdiff main..feature                Compare two branches
   $ branchdiff --base main --compare feature   Same as above
+  $ branchdiff main feat                    Branch comparison (file-level diff)
+  $ branchdiff main feat --mode git         Branch comparison (commit-level diff)
+  $ branchdiff feat                         Current branch vs feat
   $ branchdiff v1.0.0 v2.0.0               Compare two tags
   $ branchdiff staged                       Only staged changes
   $ branchdiff unstaged                     Only unstaged changes
   $ branchdiff https://github.com/owner/repo/pull/123   Review a GitHub PR
   $ branchdiff --dark --unified             Dark mode, unified view
   $ branchdiff --new                        Force restart existing instance
+
+Branch comparison modes:
+  --mode file   Compare blob hashes (fast, ignores history noise)
+  --mode git    Standard git diff (shows commit-level changes)
 
 Other commands:
   $ branchdiff tree                         Browse repository files
@@ -183,20 +191,40 @@ range syntax (main..feature, main...feature) also work.`)
       }
     }
 
+    const mode = opts.mode === 'git' ? 'git' : 'file';
     const diffArgs: string[] = [];
     let description = '';
+    let branch1: string | undefined;
+    let branch2: string | undefined;
 
     if (refs.length === 1) {
       const ref = refs[0];
       if (WORKING_TREE_REFS.has(ref)) {
         description = `${ref.charAt(0).toUpperCase() + ref.slice(1)} changes`;
       } else {
-        diffArgs.push(normalizeRef(ref));
-        description = ref.includes('..') ? ref : `Changes from ${ref}`;
+        // Single branch: current branch vs this ref
+        const currentBranch = getCurrentBranch();
+        if (currentBranch && !WORKING_TREE_REFS.has(currentBranch)) {
+          branch1 = currentBranch;
+          branch2 = ref;
+          diffArgs.push(normalizeRef(`${currentBranch}..${ref}`));
+          description = mode === 'file'
+            ? `${currentBranch} ↔ ${ref} (file-level)`
+            : `${currentBranch}..${ref}`;
+        } else {
+          diffArgs.push(normalizeRef(ref));
+          description = ref.includes('..') ? ref : `Changes from ${ref}`;
+        }
       }
     } else if (refs.length === 2) {
-      diffArgs.push(normalizeRef(`${refs[0]}..${refs[1]}`));
-      description = `${refs[0]}..${refs[1]}`;
+      branch1 = refs[0];
+      branch2 = refs[1];
+      if (mode === 'git') {
+        diffArgs.push(normalizeRef(`${refs[0]}..${refs[1]}`));
+      }
+      description = mode === 'file'
+        ? `${refs[0]} ↔ ${refs[1]} (file-level)`
+        : `${refs[0]}..${refs[1]}`;
     } else {
       description = 'Unstaged changes';
     }
@@ -225,6 +253,9 @@ range syntax (main..feature, main...feature) also work.`)
         }
       } else {
         const urlParams = new URLSearchParams({ ref: effectiveRef });
+        if (branch1) urlParams.set('b1', branch1);
+        if (branch2) urlParams.set('b2', branch2);
+        if (branch1 && branch2) urlParams.set('mode', mode);
         if (opts.dark) {
           urlParams.set('theme', 'dark');
         }
@@ -261,8 +292,14 @@ range syntax (main..feature, main...feature) also work.`)
         effectiveRef,
         version: pkg.version,
         registryInfo: { repoRoot, repoHash, repoName },
+        branch1,
+        branch2,
+        mode,
       });
       const urlParams = new URLSearchParams({ ref: effectiveRef });
+      if (branch1) urlParams.set('b1', branch1);
+      if (branch2) urlParams.set('b2', branch2);
+      if (branch1 && branch2) urlParams.set('mode', mode);
       if (opts.dark) {
         urlParams.set('theme', 'dark');
       }

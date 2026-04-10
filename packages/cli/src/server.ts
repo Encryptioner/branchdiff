@@ -17,6 +17,8 @@ import {
   getUntrackedFiles,
   getUntrackedDiff,
   getRepoInfo,
+  getRepoName,
+  getCurrentBranch,
   getFileContent,
   getStagedFiles,
   getUnstagedFiles,
@@ -44,6 +46,11 @@ import {
   pullComments as pullGitHubComments,
   type PrComment,
 } from '@branchdiff/github';
+import {
+  compareBranches,
+  getBranchFileContent,
+  getBranches as getGitBranches,
+} from '@branchdiff/git'; // re-exported from blob-diff via git index
 import { findOrCreateSession } from './session.js';
 import { createThread, addReply, getThreadsForSession } from './threads.js';
 import { handleReviewRoute } from './review-routes.js';
@@ -84,6 +91,9 @@ interface ServerOptions {
     repoHash: string;
     repoName: string;
   };
+  branch1?: string;
+  branch2?: string;
+  mode?: 'file' | 'git';
 }
 
 function serveStatic(res: ServerResponse, filePath: string) {
@@ -128,6 +138,9 @@ export function startServer(options: ServerOptions): Promise<ServerResult> {
     effectiveRef,
     version,
     registryInfo,
+    branch1,
+    branch2,
+    mode: diffMode,
   } = options;
 
   const includeUntracked = diffArgs.length === 0;
@@ -554,6 +567,72 @@ export function startServer(options: ServerOptions): Promise<ServerResult> {
             sessionId: session.id,
             github: githubRemote,
             editor: editorAvailable,
+          });
+          return;
+        }
+
+        // Branch diff routes
+        if (pathname === '/api/branches' && req.method === 'GET') {
+          const branches = getGitBranches();
+          const current = getCurrentBranch();
+          sendJson(res, { branches, current });
+          return;
+        }
+
+        if (pathname === '/api/compare' && req.method === 'GET') {
+          const b1 = url.searchParams.get('b1');
+          const b2 = url.searchParams.get('b2');
+          if (!b1 || !b2) {
+            sendError(res, 400, 'Missing b1 or b2 query params');
+            return;
+          }
+          const files = compareBranches(b1, b2);
+          sendJson(res, {
+            files,
+            total: files.length,
+            summary: {
+              added: files.filter(f => f.status === 'added').length,
+              modified: files.filter(f => f.status === 'modified').length,
+              deleted: files.filter(f => f.status === 'deleted').length,
+            },
+          });
+          return;
+        }
+
+        if (pathname === '/api/file-diff' && req.method === 'GET') {
+          const b1 = url.searchParams.get('b1');
+          const b2 = url.searchParams.get('b2');
+          const file = url.searchParams.get('file');
+          if (!b1 || !b2 || !file) {
+            sendError(res, 400, 'Missing b1, b2, or file query params');
+            return;
+          }
+          const content1 = getBranchFileContent(b1, file);
+          const content2 = getBranchFileContent(b2, file);
+
+          // Use git diff for the patch (works for both file-level and commit-level)
+          let patch = '';
+          try {
+            patch = execSync(
+              `git diff "${b1}".."${b2}" -- "${file}"`,
+              { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 20 * 1024 * 1024 },
+            );
+          } catch {}
+
+          const parsed = patch ? parseDiff(patch) : [];
+          sendJson(res, { patch, files: parsed, content1, content2 });
+          return;
+        }
+
+        if (pathname === '/api/config' && req.method === 'GET') {
+          const b1 = url.searchParams.get('b1') || branch1 || '';
+          const b2 = url.searchParams.get('b2') || branch2 || '';
+          const configMode = url.searchParams.get('mode') || diffMode || 'file';
+          sendJson(res, {
+            branch1: b1,
+            branch2: b2,
+            mode: configMode,
+            repoName: getRepoName(),
           });
           return;
         }
