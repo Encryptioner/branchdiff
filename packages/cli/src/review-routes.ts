@@ -128,5 +128,124 @@ export function handleReviewRoute(req: IncomingMessage, res: ServerResponse, pat
     return true;
   }
 
+  // ── Export endpoint for AI consumption ──
+  if (pathname === '/api/threads/export' && req.method === 'GET') {
+    const sid = url.searchParams.get('session');
+    if (!sid) {
+      sendError(res, 400, 'Missing session parameter');
+      return true;
+    }
+    const status = url.searchParams.get('status') as ThreadStatus | null;
+    const format = url.searchParams.get('format') || 'json';
+    const threads = getThreadsForSession(sid, status || undefined);
+
+    const total = threads.length;
+    const open = threads.filter(t => t.status === 'open').length;
+    const resolved = threads.filter(t => t.status === 'resolved').length;
+    const dismissed = threads.filter(t => t.status === 'dismissed').length;
+
+    // Detect severity tags in comment bodies
+    const severityPattern = /\[(must-fix|suggestion|nit|question)\]/i;
+
+    const exported = threads.map(t => {
+      const firstComment = t.comments[0]?.body || '';
+      const severityMatch = firstComment.match(severityPattern);
+      return {
+        id: t.id,
+        filePath: t.filePath,
+        side: t.side,
+        lines: t.startLine === t.endLine ? `${t.startLine}` : `${t.startLine}-${t.endLine}`,
+        severity: severityMatch ? severityMatch[1].toLowerCase() : 'comment',
+        status: t.status,
+        comments: t.comments.map(c => ({
+          author: c.author.name,
+          authorType: c.author.type,
+          body: c.body,
+          createdAt: c.createdAt,
+        })),
+        createdAt: t.createdAt,
+        updatedAt: t.updatedAt,
+      };
+    });
+
+    if (format === 'markdown') {
+      const lines: string[] = [
+        `# Review Comments — ${sid}`,
+        '',
+        `**Summary:** ${total} threads (${open} open, ${resolved} resolved, ${dismiss} dismissed)`,
+        '',
+      ];
+
+      for (const thread of exported) {
+        const severityLabel = thread.severity !== 'comment' ? `[${thread.severity}] ` : '';
+        lines.push(`## ${severityLabel}${thread.filePath}:${thread.lines} (${thread.status})`);
+        for (const comment of thread.comments) {
+          lines.push(`> **${comment.author}** (${comment.authorType}):`);
+          lines.push(`> ${comment.body}`);
+          lines.push('');
+        }
+      }
+
+      res.writeHead(200, {
+        'Content-Type': 'text/markdown; charset=utf-8',
+        'Content-Disposition': 'attachment; filename="review-comments.md"',
+      });
+      res.end(lines.join('\n'));
+      return true;
+    }
+
+    sendJson(res, {
+      summary: { total, open, resolved, dismissed },
+      threads: exported,
+    });
+    return true;
+  }
+
+  // ── Agent endpoints for AI integration ──
+  if (pathname === '/api/agent/threads' && req.method === 'GET') {
+    const sid = url.searchParams.get('session');
+    if (!sid) {
+      sendError(res, 400, 'Missing session parameter');
+      return true;
+    }
+    const status = url.searchParams.get('status') as ThreadStatus | null;
+    const threads = getThreadsForSession(sid, status || undefined);
+    sendJson(res, threads);
+    return true;
+  }
+
+  if (pathname === '/api/agent/comment' && req.method === 'POST') {
+    withJsonBody(res, req, 'Failed to post agent comment', (body) => {
+      const { sessionId: sid, filePath, side, startLine, endLine, body: commentBody, severity } = body;
+      if (!sid || !filePath || !commentBody || typeof startLine !== 'number' || typeof endLine !== 'number') {
+        sendError(res, 400, 'Missing required fields (sessionId, filePath, body, startLine, endLine)');
+        return;
+      }
+      const tag = severity ? `[${severity}] ` : '';
+      const thread = createThread(
+        sid as string, filePath as string, (side || 'right') as string,
+        startLine as number, endLine as number,
+        `${tag}${commentBody as string}`,
+        { name: 'AI Agent', type: 'agent' },
+      );
+      sendJson(res, thread);
+    });
+    return true;
+  }
+
+  if (pathname === '/api/agent/resolve' && req.method === 'POST') {
+    withJsonBody(res, req, 'Failed to resolve thread', (body) => {
+      const { threadId, summary } = body;
+      if (!threadId) {
+        sendError(res, 400, 'Missing threadId');
+        return;
+      }
+      const summaryAuthor = summary ? { name: 'AI Agent', type: 'agent' as const } : undefined;
+      updateThreadStatus(threadId as string, 'resolved', summary as string | undefined, summaryAuthor);
+      sendJson(res, { ok: true });
+    });
+    return true;
+  }
+
   return false;
 }
