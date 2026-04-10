@@ -1,21 +1,34 @@
 {
-  "name": "branchdiff",
+  "name": "@branchdiff",
   "version": "0.1.0",
-  "description": "Visual file-level git branch diff in your browser — content-aware, not commit-history-aware",
-  "bin": {
-    "branchdiff": "./bin/branchdiff.js"
-  },
+  "private": true,
+  "type": "module",
+  "description": "Visual file-level git branch diff in your browser",
   "scripts": {
-    "start": "node bin/branchdiff.js",
-    "link": "pnpm link --global"
+    "build": "tsx scripts/build.ts",
+    "dev": "tsx scripts/dev.ts",
+    "test": "pnpm run test -w @branchdiff/git && pnpm run test -w @branchdiff/parser && pnpm run test -w @branchdiff/ui",
+    "link-dev": "tsx scripts/link-dev.ts"
   },
-  "packageManager": "pnpm@latest",
-  "dependencies": {
-    "commander": "^12.0.0",
-    "diff": "^5.2.0",
-    "express": "^4.18.0"
-  },
+  "keywords": [
+    "git",
+    "diff",
+    "branch",
+    "viewer",
+    "cli",
+    "code-review"
+  ],
+  "author": "Ankur Mursalin",
+  "license": "MIT",
+  "packageManager": "pnpm@10.12.1",
   "engines": {
     "node": ">=18"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "tsx": "^4.21.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["better-sqlite3", "esbuild"]
   }
 }

@@ -31,4 +31,7 @@ Thumbs.db
 
 # Vite / TS cache
 *.tsbuildinfo
-vite.config.ts.timestamp-*
+vite.config.ts.timestamp-
+
+# Worktrees (for referencing external repos like diffity)
+.worktrees*
