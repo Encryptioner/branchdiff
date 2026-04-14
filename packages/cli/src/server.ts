@@ -599,11 +599,40 @@ export function startServer(options: ServerOptions): Promise<ServerResult> {
         if (pathname === '/api/compare' && req.method === 'GET') {
           const b1 = url.searchParams.get('b1');
           const b2 = url.searchParams.get('b2');
+          const mode = url.searchParams.get('mode') || 'file';
           if (!b1 || !b2) {
             sendError(res, 400, 'Missing b1 or b2 query params');
             return;
           }
-          const files = compareBranches(b1, b2);
+
+          let files: Array<{ path: string; status: 'added' | 'modified' | 'deleted' }>;
+          if (mode === 'git') {
+            // Git mode: use standard git diff
+            try {
+              const output = execSync(`git diff ${b1}..${b2} --name-status`, {
+                encoding: 'utf-8',
+                stdio: ['pipe', 'pipe', 'pipe'],
+              });
+              files = output
+                .split('\n')
+                .filter(Boolean)
+                .map(line => {
+                  const [status, ...pathParts] = line.split('\t');
+                  const path = pathParts.join('\t');
+                  // Map git status codes to our format
+                  let s: 'added' | 'modified' | 'deleted' = 'modified';
+                  if (status === 'A') s = 'added';
+                  else if (status === 'D') s = 'deleted';
+                  return { path, status: s };
+                });
+            } catch {
+              files = [];
+            }
+          } else {
+            // File mode: use blob comparison (default)
+            files = compareBranches(b1, b2);
+          }
+
           sendJson(res, {
             files,
             total: files.length,

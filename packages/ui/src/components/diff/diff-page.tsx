@@ -44,7 +44,7 @@ export function DiffPage() {
 
   // Regular diff or branch comparison mode
   const regularDiff = useDiff(hideWhitespace, refParam);
-  const branchDiff = useBranchComparison(b1!, b2!);
+  const branchDiff = useBranchComparison(b1!, b2!, mode);
 
   const { data: info } = useInfo(refParam);
 

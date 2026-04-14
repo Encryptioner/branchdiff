@@ -349,8 +349,8 @@ export function fetchBranches(): Promise<BranchList> {
   return apiFetch('/api/branches');
 }
 
-export function fetchBranchComparison(b1: string, b2: string): Promise<BranchComparison> {
-  return apiFetch(buildUrl('/api/compare', { b1, b2 }));
+export function fetchBranchComparison(b1: string, b2: string, mode?: string): Promise<BranchComparison> {
+  return apiFetch(buildUrl('/api/compare', { b1, b2, mode }));
 }
 
 export function fetchFileDiff(b1: string, b2: string, file: string): Promise<FileDiff> {

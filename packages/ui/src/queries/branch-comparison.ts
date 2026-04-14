@@ -8,10 +8,10 @@ export function branchesOptions() {
   });
 }
 
-export function branchComparisonOptions(b1: string, b2: string) {
+export function branchComparisonOptions(b1: string, b2: string, mode?: string) {
   return queryOptions({
-    queryKey: ['branch-comparison', b1, b2],
-    queryFn: () => fetchBranchComparison(b1, b2),
+    queryKey: ['branch-comparison', b1, b2, mode ?? null],
+    queryFn: () => fetchBranchComparison(b1, b2, mode),
   });
 }
 

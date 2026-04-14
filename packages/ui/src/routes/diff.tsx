@@ -20,7 +20,7 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
 
   if (isBranchComparison) {
     await Promise.all([
-      queryClient.ensureQueryData(branchComparisonOptions(b1, b2)),
+      queryClient.ensureQueryData(branchComparisonOptions(b1, b2, mode ?? undefined)),
       queryClient.ensureQueryData(repoInfoOptions(ref)),
       queryClient.ensureQueryData(branchCommitsOptions(b1, b2)),
     ]);
