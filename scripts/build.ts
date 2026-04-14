@@ -73,8 +73,12 @@ ${cssLinks}
 // Build CLI (bundles with esbuild)
 execSync('pnpm --filter branchdiff run build', { stdio: 'inherit', cwd: root });
 
-// Copy README into CLI package for npm publish
-const readmeSrc = resolve(root, 'README.md');
-if (existsSync(readmeSrc)) {
-  copyFileSync(readmeSrc, resolve(root, 'packages/cli/README.md'));
+// Copy README + LICENSE into CLI package for npm publish.
+// CHANGELOG lives in the package and is maintained there directly.
+const cliDir = resolve(root, 'packages/cli');
+for (const file of ['README.md', 'LICENSE.md']) {
+  const src = resolve(root, file);
+  if (existsSync(src)) {
+    copyFileSync(src, resolve(cliDir, file));
+  }
 }

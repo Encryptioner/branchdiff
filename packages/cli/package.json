@@ -1,48 +1,73 @@
 {
-  "name": "branchdiff",
+  "name": "@encryptioner/branchdiff",
   "version": "0.1.0",
   "description": "Visual file-level git branch diff in your browser",
-  "type": "module",
-  "bin": {
-    "branchdiff": "./dist/index.js"
-  },
-  "scripts": {
-    "build": "tsx build.ts",
-    "dev": "tsx src/index.ts",
-    "dev:watch": "tsx build.ts --watch"
-  },
-  "dependencies": {
-    "@branchdiff/git": "workspace:*",
-    "@branchdiff/github": "workspace:*",
-    "@branchdiff/parser": "workspace:*",
-    "@react-router/node": "^7.13.2",
-    "better-sqlite3": "^12.8.0",
-    "commander": "^14.0.3",
-    "dayjs": "^1.11.20",
-    "open": "^11.0.0",
-    "picocolors": "^1.1.1"
-  },
-  "files": [
-    "dist"
-  ],
   "keywords": [
     "git",
     "diff",
     "branch",
     "viewer",
     "cli",
-    "code-review"
+    "code-review",
+    "pr-review",
+    "branch-compare",
+    "blob-diff",
+    "github"
   ],
-  "author": "Ankur Mursalin",
+  "author": {
+    "name": "Mir Mursalin Ankur",
+    "email": "mir.ankur.ruet13@gmail.com",
+    "url": "https://encryptioner.github.io/"
+  },
   "license": "MIT",
-  "engines": {
-    "node": ">=18"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Encryptioner/branchdiff.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Encryptioner/branchdiff/issues"
+  },
+  "homepage": "https://github.com/Encryptioner/branchdiff#readme",
+  "type": "module",
+  "bin": {
+    "branchdiff": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsx build.ts",
+    "dev": "tsx src/index.ts",
+    "dev:watch": "tsx build.ts --watch",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "echo '\\n⚠️  Run `pnpm build` from repo root before publishing (bundles workspace packages + UI).\\n'"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.8.0",
+    "commander": "^14.0.3",
+    "dayjs": "^1.11.20",
+    "open": "^11.0.0",
+    "picocolors": "^1.1.1"
   },
   "devDependencies": {
+    "@branchdiff/git": "workspace:*",
+    "@branchdiff/github": "workspace:*",
+    "@branchdiff/parser": "workspace:*",
+    "@react-router/node": "^7.13.2",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.5.0",
     "esbuild": "^0.27.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

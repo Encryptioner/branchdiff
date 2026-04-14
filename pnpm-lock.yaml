@@ -17,18 +17,6 @@ importers:
 
   packages/cli:
     dependencies:
-      '@branchdiff/git':
-        specifier: workspace:*
-        version: link:../git
-      '@branchdiff/github':
-        specifier: workspace:*
-        version: link:../github
-      '@branchdiff/parser':
-        specifier: workspace:*
-        version: link:../parser
-      '@react-router/node':
-        specifier: ^7.13.2
-        version: 7.14.0(react-router@7.14.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(typescript@5.9.3)
       better-sqlite3:
         specifier: ^12.8.0
         version: 12.8.0
@@ -45,6 +33,18 @@ importers:
         specifier: ^1.1.1
         version: 1.1.1
     devDependencies:
+      '@branchdiff/git':
+        specifier: workspace:*
+        version: link:../git
+      '@branchdiff/github':
+        specifier: workspace:*
+        version: link:../github
+      '@branchdiff/parser':
+        specifier: workspace:*
+        version: link:../parser
+      '@react-router/node':
+        specifier: ^7.13.2
+        version: 7.14.0(react-router@7.14.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(typescript@5.9.3)
       '@types/better-sqlite3':
         specifier: ^7.6.13
         version: 7.6.13

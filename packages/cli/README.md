@@ -2,6 +2,8 @@
 
 Visual file-level git branch diff in your browser.
 
+> Inspired by [Diffity](https://github.com/kamranahmedse/diffity)
+
 ## Why branchdiff?
 
 `git diff branch1..branch2` compares **commit ancestry**, not file content. If two branches reached the same state via different histories (rebase, cherry-pick, squash), git diff shows noise.
@@ -103,5 +105,3 @@ pnpm build
 ## License
 
 MIT
-
-> Inspired by [Diffity](https://github.com/kamranahmedse/diffity)

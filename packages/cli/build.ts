@@ -26,14 +26,14 @@ const buildOptions = {
   banner: {
     js: '#!/usr/bin/env node',
   },
+  // Bundle workspace packages so the published npm package is self-contained.
+  // Keep runtime npm deps and native modules external — they'll be installed by the user.
   external: [
-    '@branchdiff/git',
-    '@branchdiff/github',
-    '@branchdiff/parser',
     'better-sqlite3',
     'commander',
     'open',
     'picocolors',
+    'dayjs',
   ],
   sourcemap: isWatch,
   minifySyntax: !isWatch,
