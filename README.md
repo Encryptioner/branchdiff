@@ -65,6 +65,43 @@ branchdiff tree                         # file browser
 - **Multiple instances** — different repos on different ports
 - **GitHub PR integration** — push/pull review comments to GitHub
 
+## Branch Comparison Modes
+
+branchdiff supports two comparison modes for branch diffs:
+
+### File Mode (default: blob hashes)
+Compares **actual file content** at each branch tip, ignoring commit history.
+- Use when: branches may have diverged via rebase/cherry-pick but reached same state
+- Shows files with different blob hashes only
+- Perfect for: reviewing actual code changes regardless of commit ancestry
+
+```bash
+branchdiff main feat              # uses file mode by default
+branchdiff main feat --mode file  # explicit file mode
+```
+
+![File Mode - Blob Comparison](docs/assets/file-mode-screenshot.png)
+
+### Git Mode (standard git diff)
+Uses **commit ancestry** comparison (standard `git diff branch1..branch2`).
+- Use when: you care about the commit history path between branches
+- Shows what changed in the commits between branches
+- Perfect for: understanding commit-level differences and PR review flow
+
+```bash
+branchdiff main feat --mode git
+```
+
+![Git Mode - Commit Diff](docs/assets/git-mode-screenshot.png)
+
+**Key Difference:**
+```
+Scenario: Both branches add same comment to server.ts via different commits
+
+File mode:  No change (blob hashes identical)
+Git mode:   Modified (commits differ, even though final state is same)
+```
+
 ## How it works
 
 ```
