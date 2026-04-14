@@ -44,7 +44,8 @@
     "dev": "tsx src/index.ts",
     "dev:watch": "tsx build.ts --watch",
     "clean": "rm -rf dist",
-    "prepublishOnly": "echo '\\n⚠️  Run `pnpm build` from repo root before publishing (bundles workspace packages + UI).\\n'"
+    "prepublishOnly": "echo '\\n⚠️  Run `pnpm build` from repo root before publishing (bundles workspace packages + UI).\\n'",
+    "postinstall": "pnpm rebuild better-sqlite3"
   },
   "dependencies": {
     "better-sqlite3": "^12.8.0",
@@ -57,7 +58,6 @@
     "@branchdiff/git": "workspace:*",
     "@branchdiff/github": "workspace:*",
     "@branchdiff/parser": "workspace:*",
-    "@react-router/node": "^7.13.2",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.5.0",
     "esbuild": "^0.27.0",
