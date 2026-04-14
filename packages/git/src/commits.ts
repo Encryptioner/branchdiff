@@ -26,3 +26,13 @@ export function getRecentCommits(query: CommitQuery): Commit[] {
     return { hash, shortHash, message, relativeDate };
   });
 }
+
+export function getBranchCommits(b1: string, b2: string): Commit[] {
+  const format = '%H|%h|%s|%cr|%an';
+  const output = exec(`git log "${b1}..${b2}" --format="${format}"`);
+  if (!output) return [];
+  return output.split('\n').map((line) => {
+    const [hash, shortHash, message, relativeDate, author] = line.split('|');
+    return { hash, shortHash, message, relativeDate, author };
+  });
+}

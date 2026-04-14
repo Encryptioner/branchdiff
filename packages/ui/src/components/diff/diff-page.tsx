@@ -1,8 +1,9 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useLoaderData } from 'react-router';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useDiff } from '../../hooks/use-diff';
 import { useBranchComparison } from '../../hooks/use-branch-comparison';
+import { branchCommitsOptions } from '../../queries/branch-comparison';
 import { useInfo } from '../../hooks/use-info';
 import { useTheme } from '../../hooks/use-theme';
 import { useKeyboard } from '../../hooks/use-keyboard';
@@ -47,6 +48,12 @@ export function DiffPage() {
 
   const { data: info } = useInfo(refParam);
 
+  // Branch commits (only fetched in branch comparison mode)
+  const branchCommitsResult = isBranchComparison
+    ? useSuspenseQuery(branchCommitsOptions(b1!, b2!))
+    : null;
+  const branchCommits = branchCommitsResult?.data?.commits;
+
   // Normalize branch comparison data to ParsedDiff-like format
   const diff = isBranchComparison
     ? (() => {
@@ -88,6 +95,17 @@ export function DiffPage() {
   const canRevert = !!info?.capabilities?.revert;
   const { isStale, resetStaleness } = useDiffStaleness(refParam, !!info?.capabilities?.staleness);
   const [githubDetails, setGithubDetails] = useState<GitHubDetails | null>(null);
+
+  useEffect(() => {
+    const repoName = info?.name || 'branchdiff';
+    if (isBranchComparison && b1 && b2) {
+      document.title = `${repoName}: ${b1} \u2194 ${b2} (${mode} mode)`;
+    } else if (refParam && refParam !== 'work' && refParam !== '.') {
+      document.title = `${repoName}: ${refParam}`;
+    } else {
+      document.title = repoName;
+    }
+  }, [info?.name, isBranchComparison, b1, b2, mode, refParam]);
 
   useEffect(() => {
     if (!info?.github) {
@@ -400,6 +418,7 @@ export function DiffPage() {
           commentCountsByFile={commentCountsByFile}
           onFileClick={handleSidebarFileClick}
           onCommentedFileClick={handleSidebarCommentedFileClick}
+          branchCommits={isBranchComparison ? branchCommits : undefined}
         />
         {diff ? (
           <DiffView

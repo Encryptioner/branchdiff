@@ -3,7 +3,7 @@ import type { Route } from "./+types/diff";
 import { queryClient } from "../lib/query-client";
 import { diffOptions } from "../queries/diff";
 import { repoInfoOptions } from "../queries/info";
-import { branchComparisonOptions } from "../queries/branch-comparison";
+import { branchComparisonOptions, branchCommitsOptions } from "../queries/branch-comparison";
 import { DiffPage } from "../components/diff/diff-page";
 import { ErrorPage } from "../components/error-page";
 
@@ -22,6 +22,7 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
     await Promise.all([
       queryClient.ensureQueryData(branchComparisonOptions(b1, b2)),
       queryClient.ensureQueryData(repoInfoOptions(ref)),
+      queryClient.ensureQueryData(branchCommitsOptions(b1, b2)),
     ]);
   } else {
     await Promise.all([

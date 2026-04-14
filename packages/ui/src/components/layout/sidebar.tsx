@@ -8,6 +8,9 @@ import { XIcon } from '../icons/x-icon';
 import { CommentIcon } from '../icons/comment-icon';
 import { CollapseAllIcon } from '../icons/collapse-all-icon';
 import { ExpandAllIcon } from '../icons/expand-all-icon';
+import { ChevronIcon } from '../icons/chevron-icon';
+import { BranchCommitList } from './branch-commit-list';
+import type { Commit } from '../../lib/api';
 
 interface SidebarProps {
   files: DiffFile[];
@@ -16,6 +19,7 @@ interface SidebarProps {
   commentCountsByFile: Map<string, number>;
   onFileClick: (path: string) => void;
   onCommentedFileClick: (path: string) => void;
+  branchCommits?: Commit[];
 }
 
 export function Sidebar(props: SidebarProps) {
@@ -26,12 +30,14 @@ export function Sidebar(props: SidebarProps) {
     commentCountsByFile,
     onFileClick,
     onCommentedFileClick,
+    branchCommits,
   } = props;
   const fileTreeRef = useRef<FileTreeHandle>(null);
   const [search, setSearch] = useState('');
   const [collapsed, setCollapsed] = useState(false);
   const [commentedFilesOnly, setCommentedFilesOnly] = useState(false);
   const [allExpanded, setAllExpanded] = useState(true);
+  const [showCommits, setShowCommits] = useState(false);
 
   const commentedFileCount = commentCountsByFile.size;
   const commentedFileCountLabel = commentedFileCount > 99 ? '99+' : String(commentedFileCount);
@@ -153,6 +159,27 @@ export function Sidebar(props: SidebarProps) {
           </button>
         )}
       </div>
+      {branchCommits && branchCommits.length > 0 && (
+        <div className="border-b border-border">
+          <button
+            className="flex items-center justify-between w-full px-3 py-2 text-xs font-medium text-text-secondary uppercase tracking-wider hover:bg-hover transition-colors cursor-pointer"
+            onClick={() => setShowCommits(!showCommits)}
+          >
+            <span className="flex items-center gap-2">
+              Commits
+              <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 bg-bg-tertiary rounded-full text-[10px] font-semibold text-text-muted">
+                {branchCommits.length}
+              </span>
+            </span>
+            <ChevronIcon expanded={showCommits} />
+          </button>
+          {showCommits && (
+            <div className="max-h-64 overflow-y-auto">
+              <BranchCommitList commits={branchCommits} />
+            </div>
+          )}
+        </div>
+      )}
       <FileTree
         ref={fileTreeRef}
         files={files}

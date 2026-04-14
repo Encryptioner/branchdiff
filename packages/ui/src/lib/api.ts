@@ -62,6 +62,7 @@ export interface Commit {
   shortHash: string;
   message: string;
   relativeDate: string;
+  author?: string;
 }
 
 export interface OverviewFile {
@@ -358,4 +359,12 @@ export function fetchFileDiff(b1: string, b2: string, file: string): Promise<Fil
 
 export function fetchBranchConfig(b1?: string, b2?: string, mode?: string): Promise<BranchConfig> {
   return apiFetch(buildUrl('/api/config', { b1, b2, mode }));
+}
+
+export interface BranchCommitsResponse {
+  commits: Commit[];
+}
+
+export function fetchBranchCommits(b1: string, b2: string): Promise<BranchCommitsResponse> {
+  return apiFetch(buildUrl('/api/branch-commits', { b1, b2 }));
 }

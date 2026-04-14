@@ -1,5 +1,5 @@
 import { queryOptions } from '@tanstack/react-query';
-import { fetchBranchComparison, fetchBranches, fetchBranchConfig, fetchFileDiff } from '../lib/api';
+import { fetchBranchComparison, fetchBranches, fetchBranchConfig, fetchFileDiff, fetchBranchCommits } from '../lib/api';
 
 export function branchesOptions() {
   return queryOptions({
@@ -26,5 +26,12 @@ export function branchConfigOptions(b1?: string, b2?: string, mode?: string) {
   return queryOptions({
     queryKey: ['branch-config', b1 ?? null, b2 ?? null, mode ?? null],
     queryFn: () => fetchBranchConfig(b1, b2, mode),
+  });
+}
+
+export function branchCommitsOptions(b1: string, b2: string) {
+  return queryOptions({
+    queryKey: ['branch-commits', b1, b2],
+    queryFn: () => fetchBranchCommits(b1, b2),
   });
 }

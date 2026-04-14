@@ -4,7 +4,7 @@ export { isGitRepo, getRepoRoot, getRepoName, getCurrentBranch, getRepoInfo, get
 export { getDiff, getDiffFiles, getDiffStat, getDiffStatForRef, getUntrackedFiles, getUntrackedDiff, getFileContent, getFileLineCount, getMergeBase, normalizeRef, resolveBaseRef, resolveDiffArgs, resolveRef, revertFile, revertHunk, WORKING_TREE_REFS } from './diff.js';
 export type { RefDiffArgs } from './diff.js';
 export { getStagedFiles, getUnstagedFiles, isDirty } from './status.js';
-export { getRecentCommits } from './commits.js';
+export { getRecentCommits, getBranchCommits } from './commits.js';
 export { getTree, getTreeEntries, getTreeFingerprint, getWorkingTreeFileContent, getWorkingTreeRawFile } from './tree.js';
 export type { TreeEntry } from './tree.js';
 export { getBlobMap, compareBranches, getBranchFileContent, getBranches } from './blob-diff.js';

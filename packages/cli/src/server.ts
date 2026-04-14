@@ -23,6 +23,7 @@ import {
   getStagedFiles,
   getUnstagedFiles,
   getRecentCommits,
+  getBranchCommits,
   getFileLineCount,
   resolveBaseRef,
   resolveDiffArgs,
@@ -292,6 +293,22 @@ export function startServer(options: ServerOptions): Promise<ServerResult> {
             sendJson(res, { commits, hasMore: commits.length === count });
           } catch (err) {
             sendError(res, 500, `Failed to get commits: ${err}`);
+          }
+          return;
+        }
+
+        if (pathname === '/api/branch-commits') {
+          const b1 = url.searchParams.get('b1');
+          const b2 = url.searchParams.get('b2');
+          if (!b1 || !b2) {
+            sendError(res, 400, 'Missing b1 or b2 query params');
+            return;
+          }
+          try {
+            const commits = getBranchCommits(b1, b2);
+            sendJson(res, { commits });
+          } catch (err) {
+            sendError(res, 500, `Failed to get branch commits: ${err}`);
           }
           return;
         }

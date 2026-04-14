@@ -3,6 +3,7 @@ export interface Commit {
   shortHash: string;
   message: string;
   relativeDate: string;
+  author?: string;
 }
 
 export interface RepoInfo {
