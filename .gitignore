@@ -33,5 +33,14 @@ Thumbs.db
 *.tsbuildinfo
 vite.config.ts.timestamp-
 
-# Worktrees (for referencing external repos like diffity)
-.worktrees*
+# Worktrees
+.worktrees/*
+
+# Mcp
+.playwright-mcp/*
+
+# Screenshots
+screenshots/*
+
+# Others
+.bin/*
