@@ -54,7 +54,12 @@ export function compareBranches(branch1: string, branch2: string): DiffFile[] {
     files.push({ path: filePath, status });
   }
 
-  return files.sort((a, b) => a.path.localeCompare(b.path));
+  // Sort: modified first, then added, then deleted — within each group alphabetically
+  const statusOrder: Record<string, number> = { modified: 0, added: 1, deleted: 2 };
+  return files.sort((a, b) => {
+    const so = statusOrder[a.status] - statusOrder[b.status];
+    return so !== 0 ? so : a.path.localeCompare(b.path);
+  });
 }
 
 /**
