@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 export function sendJson(res: ServerResponse, data: unknown) {
-  res.writeHead(200, { 'Content-Type': 'application/json', 'X-Powered-By': 'branchdiff' });
+  res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify(data));
 }
 
