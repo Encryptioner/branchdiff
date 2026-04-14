@@ -54,7 +54,7 @@ export function compareBranches(branch1: string, branch2: string): DiffFile[] {
     files.push({ path: filePath, status });
   }
 
-  return files.sort((a, b) => a.path.localeCompare(b.path));
+  return files.toSorted((a, b) => a.path.localeCompare(b.path));
 }
 
 /**

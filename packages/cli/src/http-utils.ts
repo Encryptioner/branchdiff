@@ -6,7 +6,10 @@ export function sendJson(res: ServerResponse, data: unknown) {
 }
 
 export function sendError(res: ServerResponse, status: number, message: string) {
-  res.writeHead(status, { 'Content-Type': 'application/json' });
+  res.writeHead(status, {
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-store',
+  });
   res.end(JSON.stringify({ error: message }));
 }
 

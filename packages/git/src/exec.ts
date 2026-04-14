@@ -11,18 +11,20 @@ export function execWithStdin(cmd: string, input: string): string {
   });
 }
 
-export function exec(cmd: string): string {
+export function exec(cmd: string, cwd?: string): string {
   return execSync(cmd, {
     encoding: 'utf-8',
     stdio: STDIO,
+    ...(cwd ? { cwd } : {}),
   }).trim();
 }
 
-export function execLarge(cmd: string): string {
+export function execLarge(cmd: string, cwd?: string): string {
   return execSync(cmd, {
     encoding: 'utf-8',
     stdio: STDIO,
     maxBuffer: 50 * 1024 * 1024,
+    ...(cwd ? { cwd } : {}),
   });
 }
 
