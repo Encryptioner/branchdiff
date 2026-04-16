@@ -15,10 +15,10 @@ export function branchComparisonOptions(b1: string, b2: string, mode?: string) {
   });
 }
 
-export function fileDiffOptions(b1: string, b2: string, file: string) {
+export function fileDiffOptions(b1: string, b2: string, file: string, mode?: string) {
   return queryOptions({
-    queryKey: ['file-diff', b1, b2, file],
-    queryFn: () => fetchFileDiff(b1, b2, file),
+    queryKey: ['file-diff', b1, b2, file, mode ?? null],
+    queryFn: () => fetchFileDiff(b1, b2, file, mode),
   });
 }
 

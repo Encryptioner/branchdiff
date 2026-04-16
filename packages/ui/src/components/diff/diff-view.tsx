@@ -47,6 +47,7 @@ interface DiffViewProps {
   onAddThread: CommentActions['addThread'];
   pendingSelection: LineSelection | null;
   onPendingSelectionChange: (selection: LineSelection | null) => void;
+  showFullDiff?: boolean;
 }
 
 function estimateFileHeight(file: { hunks: { lines: { length: number } }[]; isBinary: boolean }, collapsed: boolean): number {
@@ -72,7 +73,7 @@ export function DiffView(props: DiffViewProps) {
     reviewedFiles, onReviewedChange, onActiveFileChange, scrollRef,
     handle, baseRef, canRevert, onRevert,
     threads, commentsEnabled, commentActions, onAddThread,
-    pendingSelection, onPendingSelectionChange,
+    pendingSelection, onPendingSelectionChange, showFullDiff,
   } = props;
   const { highlight } = useHighlighter();
   const scrollElementRef = useRef<HTMLElement>(null);
@@ -299,6 +300,7 @@ export function DiffView(props: DiffViewProps) {
                 onAddThread={onAddThread}
                 pendingSelection={pendingSelection}
                 onPendingSelectionChange={onPendingSelectionChange}
+                showFullDiff={showFullDiff}
               />
             </div>
           );

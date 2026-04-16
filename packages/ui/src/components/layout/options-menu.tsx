@@ -56,7 +56,7 @@ export function OptionsMenu(props: OptionsMenuProps) {
           </button>
           <div className="border-t border-border my-1" />
           <a
-            href="https://github.com/kamranahmedse/branchdiff"
+            href="https://github.com/encryptioner/branchdiff"
             target="_blank"
             rel="noopener noreferrer"
             className={menuItemClass}

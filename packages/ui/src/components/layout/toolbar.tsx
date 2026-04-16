@@ -23,6 +23,8 @@ interface ToolbarProps {
   onViewModeChange: (mode: ViewMode) => void;
   hideWhitespace: boolean;
   onHideWhitespaceChange: (hide: boolean) => void;
+  showFullDiff: boolean;
+  onShowFullDiffChange: (show: boolean) => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
   onShowHelp: () => void;
@@ -37,6 +39,8 @@ interface ToolbarProps {
   githubDetails?: { prNumber: number; prTitle: string; prUrl: string; prCreatedAt: string; headSha: string; commentCount: number } | null;
   sessionId?: string | null;
   onGitHubPulled?: () => void;
+  diffMode?: 'file' | 'git';
+  onDiffModeChange?: (mode: 'file' | 'git') => void;
 }
 
 function extractCodeContext(diff: ParsedDiff | undefined, filePath: string, side: 'old' | 'new', startLine: number, endLine: number): string[] {
@@ -117,6 +121,8 @@ export function Toolbar(props: ToolbarProps) {
     onViewModeChange,
     hideWhitespace,
     onHideWhitespaceChange,
+    showFullDiff,
+    onShowFullDiffChange,
     theme,
     onToggleTheme,
     onShowHelp,
@@ -131,6 +137,8 @@ export function Toolbar(props: ToolbarProps) {
     githubDetails,
     sessionId,
     onGitHubPulled,
+    diffMode,
+    onDiffModeChange,
   } = props;
   const [showGitHub, setShowGitHub] = useState(false);
 
@@ -141,6 +149,11 @@ export function Toolbar(props: ToolbarProps) {
   const viewModeOptions = useMemo(() => [
     { value: 'unified' as ViewMode, label: 'Unified', icon: <UnifiedViewIcon className="w-3.5 h-3.5" /> },
     { value: 'split' as ViewMode, label: 'Split', icon: <SplitViewIcon className="w-3.5 h-3.5" /> },
+  ], []);
+
+  const diffModeOptions = useMemo(() => [
+    { value: 'file' as const, label: 'File' },
+    { value: 'git' as const, label: 'Git' },
   ], []);
 
   return (
@@ -173,6 +186,18 @@ export function Toolbar(props: ToolbarProps) {
         )}
       </div>
       <div className="flex items-center gap-2 ml-auto shrink-0">
+        {diffMode && onDiffModeChange && (
+          <SegmentedToggle options={diffModeOptions} value={diffMode} onChange={onDiffModeChange} />
+        )}
+        <label className="flex items-center gap-1.5 text-[11px] text-text-muted cursor-pointer select-none hover:text-text transition-colors">
+          <input
+            type="checkbox"
+            checked={showFullDiff}
+            onChange={() => onShowFullDiffChange(!showFullDiff)}
+            className="accent-accent cursor-pointer w-3 h-3"
+          />
+          Show full diff
+        </label>
         <SegmentedToggle options={viewModeOptions} value={viewMode} onChange={onViewModeChange} />
         <CommentToolbarActions
           threads={threads}

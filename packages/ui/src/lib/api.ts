@@ -353,16 +353,20 @@ export function fetchBranchComparison(b1: string, b2: string, mode?: string): Pr
   return apiFetch(buildUrl('/api/compare', { b1, b2, mode }));
 }
 
-export function fetchFileDiff(b1: string, b2: string, file: string): Promise<FileDiff> {
-  return apiFetch(buildUrl('/api/file-diff', { b1, b2, file }));
+export function fetchFileDiff(b1: string, b2: string, file: string, mode?: string): Promise<FileDiff> {
+  return apiFetch(buildUrl('/api/file-diff', { b1, b2, file, mode }));
 }
 
 export function fetchBranchConfig(b1?: string, b2?: string, mode?: string): Promise<BranchConfig> {
   return apiFetch(buildUrl('/api/config', { b1, b2, mode }));
 }
 
+export interface BranchCommit extends Commit {
+  side: 'b1' | 'b2';
+}
+
 export interface BranchCommitsResponse {
-  commits: Commit[];
+  commits: BranchCommit[];
 }
 
 export function fetchBranchCommits(b1: string, b2: string): Promise<BranchCommitsResponse> {

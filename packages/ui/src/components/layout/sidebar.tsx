@@ -10,7 +10,7 @@ import { CollapseAllIcon } from '../icons/collapse-all-icon';
 import { ExpandAllIcon } from '../icons/expand-all-icon';
 import { ChevronIcon } from '../icons/chevron-icon';
 import { BranchCommitList } from './branch-commit-list';
-import type { Commit } from '../../lib/api';
+import type { BranchCommit } from '../../lib/api';
 
 interface SidebarProps {
   files: DiffFile[];
@@ -19,7 +19,9 @@ interface SidebarProps {
   commentCountsByFile: Map<string, number>;
   onFileClick: (path: string) => void;
   onCommentedFileClick: (path: string) => void;
-  branchCommits?: Commit[];
+  branchCommits?: BranchCommit[];
+  b1?: string;
+  b2?: string;
 }
 
 export function Sidebar(props: SidebarProps) {
@@ -31,13 +33,15 @@ export function Sidebar(props: SidebarProps) {
     onFileClick,
     onCommentedFileClick,
     branchCommits,
+    b1,
+    b2,
   } = props;
   const fileTreeRef = useRef<FileTreeHandle>(null);
   const [search, setSearch] = useState('');
   const [collapsed, setCollapsed] = useState(false);
   const [commentedFilesOnly, setCommentedFilesOnly] = useState(false);
   const [allExpanded, setAllExpanded] = useState(true);
-  const [showCommits, setShowCommits] = useState(false);
+  const [showCommits, setShowCommits] = useState(() => !!(branchCommits && branchCommits.length > 0));
 
   const commentedFileCount = commentCountsByFile.size;
   const commentedFileCountLabel = commentedFileCount > 99 ? '99+' : String(commentedFileCount);
@@ -175,7 +179,7 @@ export function Sidebar(props: SidebarProps) {
           </button>
           {showCommits && (
             <div className="max-h-64 overflow-y-auto">
-              <BranchCommitList commits={branchCommits} />
+              <BranchCommitList commits={branchCommits} b1={b1} b2={b2} />
             </div>
           )}
         </div>

@@ -3,7 +3,7 @@ import { useLoaderData } from 'react-router';
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useDiff } from '../../hooks/use-diff';
 import { useBranchComparison } from '../../hooks/use-branch-comparison';
-import { branchCommitsOptions } from '../../queries/branch-comparison';
+import { branchCommitsOptions, fileDiffOptions } from '../../queries/branch-comparison';
 import { useInfo } from '../../hooks/use-info';
 import { useTheme } from '../../hooks/use-theme';
 import { useKeyboard } from '../../hooks/use-keyboard';
@@ -22,7 +22,7 @@ import { buildFirstOpenThreadByFile, buildThreadCountsByFile } from '../../lib/c
 import { getHunkHeaders, scrollToElement } from '../../lib/dom-utils';
 import { fetchGitHubDetails, type GitHubDetails } from '../../lib/api';
 import type { LineSelection } from '../comments/types';
-import { isThreadResolved } from '../comments/types';
+import type { DiffFile } from '@branchdiff/parser';
 
 export function DiffPage() {
   const loaderData = useLoaderData<{
@@ -34,13 +34,24 @@ export function DiffPage() {
     mode: 'file' | 'git';
   }>();
 
-  const { ref: refParam, theme: initialTheme, view: initialViewMode, b1, b2, mode } = loaderData;
+  const { ref: refParam, theme: initialTheme, view: initialViewMode, b1, b2, mode: initialMode } = loaderData;
   const isBranchComparison = !!(b1 && b2);
 
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode || 'split');
   const [hideWhitespace, setHideWhitespace] = useState(false);
+  const [showFullDiff, setShowFullDiff] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  // Mode as local state so switching is instant — URL synced via replaceState to avoid loader re-run
+  const [mode, setMode] = useState<'file' | 'git'>(initialMode || 'file');
   const { theme, toggleTheme } = useTheme(initialTheme);
+  const queryClient = useQueryClient();
+
+  const handleDiffModeChange = useCallback((newMode: 'file' | 'git') => {
+    setMode(newMode);
+    const params = new URLSearchParams(window.location.search);
+    params.set('mode', newMode);
+    window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
+  }, []);
 
   // Regular diff or branch comparison mode
   const regularDiff = useDiff(hideWhitespace, refParam);
@@ -54,27 +65,72 @@ export function DiffPage() {
     : null;
   const branchCommits = branchCommitsResult?.data?.commits;
 
+  // Track file diffs for branch comparison
+  const [fileDiffs, setFileDiffs] = useState<Map<string, DiffFile>>(new Map());
+
+  // Fetch file diffs when branch comparison data is available
+  useEffect(() => {
+    if (!isBranchComparison || !branchDiff.data || !b1 || !b2) {
+      return;
+    }
+
+    const files = branchDiff.data.files;
+
+    // Fetch diffs for all files in parallel
+    Promise.all(
+      files.map(f =>
+        queryClient.ensureQueryData(fileDiffOptions(b1, b2, f.path, mode))
+          .then(fileDiff => {
+            if (fileDiff.files?.files?.[0]) {
+              return { path: f.path, file: fileDiff.files.files[0] };
+            }
+            return null;
+          })
+          .catch(() => null)
+      )
+    ).then(results => {
+      const newFileDiffs = new Map<string, DiffFile>();
+      results.forEach(result => {
+        if (result) {
+          newFileDiffs.set(result.path, result.file);
+        }
+      });
+      setFileDiffs(newFileDiffs);
+    });
+  }, [isBranchComparison, branchDiff.data, b1, b2, mode, queryClient]);
+
   // Normalize branch comparison data to ParsedDiff-like format
   const diff = isBranchComparison
     ? (() => {
         const { data: branchData, error: branchError } = branchDiff;
         if (branchError || !branchData) return regularDiff.data;
-        return {
-          files: branchData.files.map(f => ({
+
+        const normalizedFiles = branchData.files.map(f => {
+          const fileDiff = fileDiffs.get(f.path);
+          return {
             oldPath: f.status === 'added' ? '/dev/null' : f.path,
             newPath: f.status === 'deleted' ? '/dev/null' : f.path,
             status: f.status as 'added' | 'modified' | 'deleted',
-            hunks: [],
-            additions: 0,
-            deletions: 0,
-            isBinary: false,
-            oldFileLineCount: null,
-          })),
-          stats: {
-            totalAdditions: 0,
-            totalDeletions: 0,
+            hunks: fileDiff?.hunks || [],
+            additions: fileDiff?.additions || 0,
+            deletions: fileDiff?.deletions || 0,
+            isBinary: fileDiff?.isBinary || false,
+            oldFileLineCount: fileDiff?.oldFileLineCount,
+          } as DiffFile;
+        });
+
+        const stats = normalizedFiles.reduce(
+          (acc, file) => ({
+            totalAdditions: acc.totalAdditions + file.additions,
+            totalDeletions: acc.totalDeletions + file.deletions,
             filesChanged: branchData.total,
-          },
+          }),
+          { totalAdditions: 0, totalDeletions: 0, filesChanged: branchData.total }
+        );
+
+        return {
+          files: normalizedFiles,
+          stats,
         };
       })()
     : regularDiff.data;
@@ -302,8 +358,6 @@ export function DiffPage() {
     onEscape: () => setShowHelp(false),
   });
 
-  const queryClient = useQueryClient();
-
   const handleRevert = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['diff'] });
   }, [queryClient]);
@@ -394,6 +448,8 @@ export function DiffPage() {
         onViewModeChange={setViewMode}
         hideWhitespace={hideWhitespace}
         onHideWhitespaceChange={setHideWhitespace}
+        showFullDiff={showFullDiff}
+        onShowFullDiffChange={setShowFullDiff}
         theme={theme}
         onToggleTheme={toggleTheme}
         onShowHelp={() => setShowHelp(true)}
@@ -408,6 +464,8 @@ export function DiffPage() {
         githubDetails={githubDetails}
         sessionId={sessionId}
         onGitHubPulled={() => queryClient.invalidateQueries({ queryKey: ['threads'] })}
+        diffMode={isBranchComparison ? mode : undefined}
+        onDiffModeChange={isBranchComparison ? handleDiffModeChange : undefined}
       />
       {isStale && <StaleDiffBanner onRefresh={handleRefreshDiff} />}
       <div className="flex flex-1 overflow-hidden">
@@ -419,6 +477,8 @@ export function DiffPage() {
           onFileClick={handleSidebarFileClick}
           onCommentedFileClick={handleSidebarCommentedFileClick}
           branchCommits={isBranchComparison ? branchCommits : undefined}
+          b1={isBranchComparison ? b1 ?? undefined : undefined}
+          b2={isBranchComparison ? b2 ?? undefined : undefined}
         />
         {diff ? (
           <DiffView
@@ -443,6 +503,7 @@ export function DiffPage() {
             onAddThread={handleAddThread}
             pendingSelection={pendingSelection}
             onPendingSelectionChange={setPendingSelection}
+            showFullDiff={showFullDiff}
           />
         ) : null}
       </div>

@@ -649,6 +649,7 @@ export function startServer(options: ServerOptions): Promise<ServerResult> {
           const b1 = url.searchParams.get('b1');
           const b2 = url.searchParams.get('b2');
           const file = url.searchParams.get('file');
+          const mode = url.searchParams.get('mode') || 'file';
           if (!b1 || !b2 || !file) {
             sendError(res, 400, 'Missing b1, b2, or file query params');
             return;
@@ -656,14 +657,40 @@ export function startServer(options: ServerOptions): Promise<ServerResult> {
           const content1 = getBranchFileContent(b1, file);
           const content2 = getBranchFileContent(b2, file);
 
-          // Use git diff for the patch (works for both file-level and commit-level)
           let patch = '';
-          try {
-            patch = execSync(
-              `git diff "${b1}".."${b2}" -- "${file}"`,
-              { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 20 * 1024 * 1024 },
-            );
-          } catch {}
+          if (mode === 'git') {
+            // Git mode: standard commit-based diff
+            try {
+              patch = execSync(
+                `git diff "${b1}".."${b2}" -- "${file}"`,
+                { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 20 * 1024 * 1024 },
+              );
+            } catch {}
+          } else if (content1 !== null && content2 !== null) {
+            // File mode, both sides exist: compare blobs directly for proper diff with context
+            try {
+              patch = execSync(
+                `git diff "${b1}:${file}" "${b2}:${file}"`,
+                { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 20 * 1024 * 1024 },
+              );
+            } catch {}
+          } else if (content1 === null && content2 !== null) {
+            // File was added: all lines are additions
+            const lines = content2.split('\n');
+            if (lines[lines.length - 1] === '') lines.pop();
+            patch = `diff --git a/${file} b/${file}\nnew file mode 100644\n--- /dev/null\n+++ b/${file}\n@@ -0,0 +1,${lines.length} @@\n`;
+            for (const line of lines) {
+              patch += `+${line}\n`;
+            }
+          } else if (content1 !== null && content2 === null) {
+            // File was deleted: all lines are deletions
+            const lines = content1.split('\n');
+            if (lines[lines.length - 1] === '') lines.pop();
+            patch = `diff --git a/${file} b/${file}\ndeleted file mode 100644\n--- a/${file}\n+++ /dev/null\n@@ -1,${lines.length} +0,0 @@\n`;
+            for (const line of lines) {
+              patch += `-${line}\n`;
+            }
+          }
 
           const parsed = patch ? parseDiff(patch) : [];
           sendJson(res, { patch, files: parsed, content1, content2 });

@@ -23,7 +23,7 @@ export function registerUpdateCommand(program: Command, version: string, skillsH
           if (newHash !== skillsHash) {
             console.log('');
             console.log(pc.yellow('Skills have changed in this release. Update them with:'));
-            console.log(`  ${pc.cyan('npx skills add kamranahmedse/branchdiff')}`);
+            console.log(`  ${pc.cyan('npx skills add encryptioner/branchdiff')}`);
           }
         } catch {}
       } catch {
