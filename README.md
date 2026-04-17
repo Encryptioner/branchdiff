@@ -29,7 +29,9 @@ npm install -g branchdiff
 
 Also usable with `npx branchdiff main..feature` (no install).
 
-**Requires Node.js 20+** and `git` on your `PATH`.
+**Requires Node.js 18+** and `git` on your `PATH`.
+
+Shell tab-completion is installed automatically. After install, restart your terminal and `branchdiff ma<Tab>` will suggest branches.
 
 ## Usage
 
@@ -62,6 +64,18 @@ branchdiff tree                         # file browser
 | `--unified` | Open in unified view |
 | `--quiet` | Minimal terminal output |
 | `--new` | Force restart of this repo's instance |
+
+### Shell completion
+
+Tab-completion installs automatically. For manual setup:
+
+```bash
+branchdiff completion install   # auto-detect shell and install
+branchdiff completion zsh       # print zsh completion script
+branchdiff completion bash      # print bash completion script
+```
+
+Completes branch names (local + remote), subcommands, and `--mode` values.
 
 **Full reference:** [docs/guideline/USAGE.md](./docs/guideline/USAGE.md)
 

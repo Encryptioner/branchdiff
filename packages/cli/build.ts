@@ -1,11 +1,16 @@
 import { build, context } from 'esbuild';
-import { rmSync, readdirSync, statSync } from 'node:fs';
+import { rmSync, readdirSync, statSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const distDir = join(__dirname, 'dist');
 const isWatch = process.argv.includes('--watch');
+
+// Ensure dist exists (UI build used to create it as a side effect).
+if (!existsSync(distDir)) {
+  mkdirSync(distDir, { recursive: true });
+}
 
 for (const entry of readdirSync(distDir)) {
   if (entry === 'ui') {
@@ -38,6 +43,9 @@ const buildOptions = {
   sourcemap: isWatch,
   minifySyntax: !isWatch,
   treeShaking: true,
+  loader: {
+    '.sh': 'text' as const,
+  },
 };
 
 if (isWatch) {

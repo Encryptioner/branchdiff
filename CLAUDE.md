@@ -45,6 +45,7 @@
 - CI workflow: `.github/workflows/ci.yml` runs build + typecheck on push/PR to `master` across Node 18/20/22/24.
 - Required GitHub secret: `NPM_TOKEN` — a *Granular Access Token* with read+write permission on the `branchdiff` package.
 - `scripts/build.ts` copies root `README.md` + `LICENSE.md` into `packages/cli/` before publish; CHANGELOG lives in the cli package.
+- Shell completion: `packages/cli/src/completions/zsh.sh` and `bash.sh` are inlined via esbuild's `loader: { '.sh': 'text' }`. `branchdiff completion install` writes to `~/.zfunc/_branchdiff` (zsh) or `~/.local/share/bash-completion/completions/branchdiff` (bash).
 - Before any release, `pnpm pack:dry` previews shipped contents (`dist/`, README, LICENSE, CHANGELOG).
 
 ## Files to Know
