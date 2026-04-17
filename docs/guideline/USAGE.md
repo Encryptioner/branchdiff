@@ -1,47 +1,49 @@
 # Using branchdiff
 
-`@encryptioner/branchdiff` is a CLI that opens a browser UI for reviewing
-branch/PR diffs locally. This guide covers installing and using the published
-npm package.
+`branchdiff` is a CLI that opens a browser UI for reviewing git branch, commit, and working-tree diffs — **locally, no cloud, no telemetry**.
 
-For contributor setup (cloning, linking a local build, publishing releases)
-see [DEVELOPMENT.md](./DEVELOPMENT.md).
+Think of it as a beefed-up `git diff`:
+- **file-level comparison** (actual content, ignores commit-path noise)
+- side-by-side and unified views with syntax highlighting
+- inline comments + GitHub PR push/pull
+- full-file view popup (Bitbucket-style) for any changed file
+
+For contributor setup (cloning, linking a local build, releasing) see [DEVELOPMENT.md](./DEVELOPMENT.md).
 
 ---
 
 ## Requirements
 
 - **Node.js ≥ 20** — React Router 7 (the UI) needs it
-- **git** on `PATH`
-- **pnpm ≥ 8** *(optional — only if you use pnpm to install)*
-- **gh CLI** *(optional — only for the `branchdiff <pr-url>` flow)*
+- **git** available on `PATH`
+- **gh CLI** — optional, only for the `branchdiff <pr-url>` shortcut ([install](https://cli.github.com))
 
 ---
 
 ## Install
 
-### One-shot (no install)
+### Try once without installing
 
 ```bash
-npx @encryptioner/branchdiff main..feature
+npx branchdiff main..feature
 ```
 
-Use this when you want to try it once. npm downloads and runs it in a temp dir.
+npm downloads and runs it in a temp dir.
 
-### Global install
+### Global install (recommended)
 
 ```bash
 # npm
-npm install -g @encryptioner/branchdiff
+npm install -g branchdiff
 
 # pnpm
-pnpm add -g @encryptioner/branchdiff
+pnpm add -g branchdiff
 
 # yarn
-yarn global add @encryptioner/branchdiff
+yarn global add branchdiff
 ```
 
-After install the `branchdiff` binary is on your `PATH`:
+Then the `branchdiff` binary is on your `PATH`:
 
 ```bash
 branchdiff --version
@@ -50,10 +52,10 @@ branchdiff --version
 ### Per-project dev dependency
 
 ```bash
-pnpm add -D @encryptioner/branchdiff
+pnpm add -D branchdiff
 ```
 
-Then add a script to your `package.json`:
+Add a script to `package.json`:
 
 ```json
 {
@@ -63,7 +65,7 @@ Then add a script to your `package.json`:
 }
 ```
 
-And run it via `pnpm run diff main..feature`.
+Run it with `pnpm run diff main..feature`.
 
 ---
 
@@ -75,14 +77,13 @@ From inside any git repository:
 branchdiff
 ```
 
-This opens `http://localhost:5391/diff?...` in your default browser with the
-current uncommitted changes. Press `Ctrl+C` in the terminal to stop.
+Opens `http://localhost:5391/diff?...` in your default browser showing current uncommitted changes. `Ctrl+C` stops the server.
 
 ---
 
 ## Common workflows
 
-### See uncommitted changes
+### Uncommitted changes
 
 ```bash
 branchdiff                    # unstaged + staged
@@ -90,55 +91,60 @@ branchdiff staged             # only staged
 branchdiff unstaged           # only unstaged
 ```
 
-### Review your recent commits
+### Recent commits
 
 ```bash
 branchdiff HEAD~1             # last commit
 branchdiff HEAD~5             # last 5 commits
 ```
 
-### Compare branches
+### Compare branches (or any refs)
 
 ```bash
-branchdiff main                       # current branch vs main (file-level)
+branchdiff main                       # current branch vs main
 branchdiff main..feature              # range syntax
-branchdiff --base main --compare feat # flag syntax (equivalent)
-branchdiff main feature               # two-arg form
-branchdiff v1.0.0 v2.0.0              # compare tags
+branchdiff --base main --compare feat # flag syntax
+branchdiff main feature               # two positional args
+branchdiff v1.0.0 v2.0.0              # tags
+branchdiff 1df74cc 3b9a54d            # commit SHAs
+branchdiff HEAD~3 HEAD                # relative refs
+branchdiff origin/main feature        # remote + local
 ```
+
+**Any ref `git rev-parse --verify` accepts works**: branches, commits, tags, `HEAD`, `HEAD~N`, `origin/<branch>`.
 
 ### Branch comparison modes
 
 ```bash
-branchdiff main feature --mode file   # default — compare blob hashes (fast, ignores history noise)
+branchdiff main feature --mode file   # (default) compare blob hashes
 branchdiff main feature --mode git    # standard git diff (commit-level)
 ```
 
-**When to use `file` vs `git`:**
-- `file` — you want to see *what is different right now*, regardless of how
-  the branches got there. Good for PR review and branch comparison.
-- `git` — you want the commit-level diff, including the history of changes.
-  Good for understanding the evolution of a feature.
+**When to use which:**
+- `file` — you want *what is different right now*, regardless of how the branches got there. Best for PR review.
+- `git` — you want the commit-level diff, including history noise. Best for understanding how a feature evolved.
 
-### Review a GitHub PR
+Example: if `main` and `feature` both added the same comment via different commits, `--mode file` reports no change, `--mode git` reports a modification.
+
+### Review a GitHub PR by URL
 
 ```bash
 branchdiff https://github.com/owner/repo/pull/123
 ```
 
-Requires `gh` CLI installed and authenticated (`gh auth login`). This checks
-out the PR branch and opens the diff against the PR's base.
+Requires the [`gh` CLI](https://cli.github.com) installed and authenticated (`gh auth login`). Checks out the PR branch and diffs against its base.
 
 ### UI options
 
 ```bash
-branchdiff --dark             # dark mode
+branchdiff --dark             # dark theme
 branchdiff --unified          # unified view (default is split)
 branchdiff --no-open          # don't auto-open the browser
 branchdiff --quiet            # minimal terminal output
+branchdiff --port 7000        # specific port (default auto-assigns from 5391)
 ```
 
-### Tree browser
+### File browser
 
 ```bash
 branchdiff tree               # browse the repo's files in the UI
@@ -146,106 +152,138 @@ branchdiff tree               # browse the repo's files in the UI
 
 ---
 
-## Multi-instance support
+## AI-assisted review (any agent)
 
-You can run `branchdiff` in several repos at the same time. Ports are
-auto-assigned from `5391` upward:
+branchdiff exposes structured data (`--json` on every `agent` command; `/api/threads/export`) so **any AI assistant** — Claude Code, Cursor, Codex, Copilot, Gemini CLI — can review your diff, post comments, and apply fixes. No plugin, no skills install.
 
-| Instance | Repo                 | Port |
-|----------|----------------------|------|
-| 1        | `project-a`          | 5391 |
-| 2        | `project-b`          | 5392 |
-| 3        | `project-c`          | 5393 |
+Typical loop:
 
-The registry lives at `~/.branchdiff/registry.json` and is cleaned up
-automatically when instances exit. Force a specific port with `--port 7000`.
+```
+you:  "Review the changes." (to your AI)
+AI:   runs `branchdiff agent diff` → posts comments via `branchdiff agent comment`
+you:  add your own comments too, in the UI or via `branchdiff agent comment`
+you:  "Fix every open [must-fix] comment." (to your AI)
+AI:   runs `branchdiff agent list --status open --json`, applies fixes,
+      marks each resolved with `branchdiff agent resolve <id> --summary "..."`
+```
 
-If you re-run `branchdiff` in a repo that already has an instance, it
-**reuses** that instance and reopens the browser — it does not start a second
-server. Use `--new` to force a restart.
+The four primitives agents use:
+
+| Command | Purpose |
+|---|---|
+| `branchdiff agent diff` | Stream the unified diff |
+| `branchdiff agent list [--status open] --json` | Read all threads |
+| `branchdiff agent comment --file <p> --line <n> --body "[must-fix] …"` | Post a comment |
+| `branchdiff agent resolve <id> --summary "…"` | Mark a thread fixed |
+
+Severity tags: `[must-fix]`, `[suggestion]`, `[nit]`, `[question]` — placed at the start of the comment body.
+
+**Full prompt templates + examples:** [AI-REVIEW.md](./AI-REVIEW.md)
 
 ---
 
-## Instance management commands
+## CLI flag reference
+
+| Flag | Default | Description |
+|---|---|---|
+| `--mode <file\|git>` | `file` | Diff mode: file (blob hashes) or git (commit ancestry) |
+| `--base <ref>` | — | Base ref to compare from |
+| `--compare <ref>` | — | Ref to compare against |
+| `--port <port>` | auto 5391+ | HTTP server port |
+| `--no-open` | — | Don't auto-open browser |
+| `--dark` | — | Open UI in dark mode |
+| `--unified` | — | Open UI in unified view |
+| `--quiet` | — | Minimal terminal output |
+| `--new` | — | Force restart of this repo's instance |
+
+---
+
+## Multi-instance support
+
+Run `branchdiff` in multiple repos at the same time. Ports auto-assign from `5391`:
+
+| Instance | Repo | Port |
+|---|---|---|
+| 1 | `project-a` | 5391 |
+| 2 | `project-b` | 5392 |
+| 3 | `project-c` | 5393 |
+
+Registry lives at `~/.branchdiff/registry.json` and is cleaned up automatically when instances exit. Force a specific port with `--port 7000`.
+
+If you re-run `branchdiff` in a repo that already has an instance, it **reuses** that instance and reopens the browser — it does not start a second server. Use `--new` to force a restart.
+
+---
+
+## Instance management
 
 ```bash
 branchdiff list               # list all running instances
 branchdiff kill               # stop all instances
 branchdiff open               # reopen the last instance for this repo
-branchdiff prune              # remove all branchdiff data (~/.branchdiff)
-branchdiff doctor             # diagnose install / environment issues
+branchdiff prune              # wipe all branchdiff data (~/.branchdiff)
+branchdiff doctor             # diagnose install / env issues
+branchdiff update             # self-update via npm
 ```
 
 ---
 
 ## Data & privacy
 
-Everything runs **locally**. No telemetry, no network calls (other than to
-`localhost` and, if you use the PR URL flow, to GitHub via your `gh` CLI).
+Everything runs **locally**. No telemetry, no outbound network calls — except:
+- `localhost` (the UI talks to the CLI's HTTP server)
+- GitHub API via your local `gh` CLI (only if you use the PR URL flow or push/pull comments)
 
 State is stored in:
-
 - `~/.branchdiff/registry.json` — running instance metadata
-- `~/.branchdiff/<repo-hash>/` — per-repo SQLite db for review comments and
-  threads
+- `~/.branchdiff/<repo-hash>/` — per-repo SQLite db with review comments and threads
 
-Run `branchdiff prune` to wipe everything.
+Wipe everything with `branchdiff prune`.
 
 ---
 
 ## Troubleshooting
 
 ### "Error: Not a git repository"
-
 Run `branchdiff` from inside a git working tree.
 
-### Port 5391 already in use (non-branchdiff process)
-
+### Port 5391 already in use (by something else)
 ```bash
 branchdiff --port 7000
 ```
-
-Or kill whatever is using 5391. `branchdiff list` only tracks its own
-instances.
+`branchdiff list` only tracks its own instances.
 
 ### UI won't load / stale cache
-
 ```bash
 branchdiff --new
 ```
-
 Forces a clean restart of this repo's instance.
 
 ### Native module errors (`better-sqlite3`)
-
-This almost always means you installed on one Node version and switched to
-another. Reinstall:
-
+Happens when you installed on one Node version and switched to another.
 ```bash
-npm rebuild better-sqlite3
+npm rebuild -g better-sqlite3
 # or
-pnpm rebuild
+pnpm rebuild -g
 ```
 
 ### "GitHub CLI (gh) is not installed"
+Install from <https://cli.github.com> then `gh auth login`. Required only for the PR URL workflow.
 
-Install from <https://cli.github.com> then `gh auth login`. Required only for
-the PR URL workflow.
+### Something weird — run the doctor
+```bash
+branchdiff doctor
+```
 
 ---
 
 ## Uninstall
 
 ```bash
-# npm
-npm uninstall -g @encryptioner/branchdiff
+npm uninstall -g branchdiff
+# or: pnpm remove -g branchdiff
 
-# pnpm
-pnpm remove -g @encryptioner/branchdiff
-
-# clean up local state
-branchdiff prune
-rm -rf ~/.branchdiff
+branchdiff prune       # clean state
+rm -rf ~/.branchdiff   # nuclear option
 ```
 
 ---
@@ -254,4 +292,5 @@ rm -rf ~/.branchdiff
 
 - [DEVELOPMENT.md](./DEVELOPMENT.md) — cloning, local linking, releasing
 - [../OVERVIEW.md](../OVERVIEW.md) — architecture
-- [GitHub issues](https://github.com/Encryptioner/branchdiff/issues)
+- [GitHub issues](https://github.com/Encryptioner/branchdiff/issues) — bug reports, feature requests
+- [npm](https://www.npmjs.com/package/branchdiff)

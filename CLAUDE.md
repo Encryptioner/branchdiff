@@ -36,7 +36,15 @@
 ## Performance Gotchas
 - `diff-page.tsx` previously pre-fetched `/api/file-diff` for every changed file via `Promise.all`. Lazy-load on viewport intersection instead — a 500-file PR will DoS the server otherwise.
 - `server.ts` uses `execSync` for git calls, which blocks the entire Node HTTP thread. Prefer `execFile` (promisified) on hot paths.
-- Shiki and Mermaid are heavy (~3MB gzipped combined). Import dynamically where possible.
+- Shiki and Mermaid are heavy. Both are now dynamic-imported: Shiki core in `use-highlighter.ts`, Mermaid in `mermaid-diagram.tsx`. Keep them that way — static-imports in any file consumed from the root bundle will re-bloat first paint.
+
+## Publishing to npm
+- Published package: **`branchdiff`** (unscoped, lives in `packages/cli/`, `name` in `package.json`). Root is `@branchdiff/root` and `private: true`.
+- Release flow: `pnpm run release:patch|minor|major` → bumps `packages/cli/package.json`, commits, tags `vX.Y.Z`, pushes. `.github/workflows/publish.yml` fires on the tag and publishes with provenance.
+- CI workflow: `.github/workflows/ci.yml` runs typecheck + build on push/PR to `main` across Node 20/22.
+- Required GitHub secret: `NPM_TOKEN` — a *Granular Access Token* with read+write permission on the `branchdiff` package.
+- `scripts/build.ts` copies root `README.md` + `LICENSE.md` into `packages/cli/` before publish; CHANGELOG lives in the cli package.
+- Before any release, `pnpm pack:dry` previews shipped contents (`dist/`, README, LICENSE, CHANGELOG).
 
 ## Files to Know
 - `packages/git/src/blob-diff.ts` — core file-level diff logic (`compareBranches`, `getBranchFileContent`)

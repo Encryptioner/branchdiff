@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type { DiffHunk, FileStatus } from '@branchdiff/parser';
+import { computeWordDiff, type DiffHunk, type FileStatus, type WordDiffSegment } from '@branchdiff/parser';
 import { fileDiffOptions } from '../../queries/branch-comparison';
 import { useHighlighter, type HighlightedTokens } from '../../hooks/use-highlighter';
 import { Spinner } from '../icons/spinner';
@@ -62,38 +62,78 @@ function renderTokens(tokens: { text: string; color?: string }[] | undefined): R
   );
 }
 
+function sliceTokens(
+  tokens: { text: string; color?: string }[],
+  start: number,
+  length: number,
+): ReactElement[] {
+  const end = start + length;
+  const out: ReactElement[] = [];
+  let pos = 0;
+  let key = 0;
+  for (const tok of tokens) {
+    const tStart = pos;
+    const tEnd = pos + tok.text.length;
+    pos = tEnd;
+    const overlapStart = Math.max(start, tStart);
+    const overlapEnd = Math.min(end, tEnd);
+    if (overlapStart >= overlapEnd) continue;
+    const slice = tok.text.slice(overlapStart - tStart, overlapEnd - tStart);
+    out.push(
+      <span key={key++} style={tok.color ? { color: tok.color } : undefined}>
+        {slice}
+      </span>,
+    );
+  }
+  if (out.length === 0) {
+    out.push(<span key="empty">{''}</span>);
+  }
+  return out;
+}
+
+function renderLineWithWordDiff(
+  segments: WordDiffSegment[],
+  side: 'delete' | 'add',
+  tokens: { text: string; color?: string }[] | undefined,
+): ReactElement {
+  const keepDiff = side === 'delete' ? 'delete' : 'insert';
+  let charOffset = 0;
+  const out: ReactElement[] = [];
+  segments.forEach((seg, i) => {
+    if (seg.type !== 'equal' && seg.type !== keepDiff) return;
+    const highlightClass =
+      seg.type === 'delete'
+        ? 'bg-diff-del-word rounded-sm'
+        : seg.type === 'insert'
+        ? 'bg-diff-add-word rounded-sm'
+        : '';
+    const inner = tokens && tokens.length > 0
+      ? sliceTokens(tokens, charOffset, seg.text.length)
+      : [<span key={`t-${i}`}>{seg.text}</span>];
+    out.push(
+      <span key={i} className={highlightClass || undefined}>
+        {inner}
+      </span>,
+    );
+    charOffset += seg.text.length;
+  });
+  if (out.length === 0) return <span>&nbsp;</span>;
+  return <>{out}</>;
+}
+
 interface PaneProps {
   side: 'old' | 'new';
   lines: string[];
   highlighted: HighlightedTokens[] | null;
   statusMap: Map<number, OldLineStatus | NewLineStatus>;
-  onScroll: (scrollTop: number) => void;
-  scrollTop: number;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
   label: string;
   empty: boolean;
   emptyLabel: string;
 }
 
 function FilePane(props: PaneProps) {
-  const { side, lines, highlighted, statusMap, onScroll, scrollTop, label, empty, emptyLabel } = props;
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const isSelfScrolling = useRef(false);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || isSelfScrolling.current) return;
-    if (Math.abs(el.scrollTop - scrollTop) > 1) {
-      el.scrollTop = scrollTop;
-    }
-  }, [scrollTop]);
-
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    isSelfScrolling.current = true;
-    onScroll(e.currentTarget.scrollTop);
-    requestAnimationFrame(() => {
-      isSelfScrolling.current = false;
-    });
-  };
+  const { side, lines, highlighted, statusMap, scrollRef, label, empty, emptyLabel } = props;
 
   return (
     <div className="flex flex-col min-w-0 border border-border rounded-md overflow-hidden">
@@ -103,7 +143,6 @@ function FilePane(props: PaneProps) {
       <div
         ref={scrollRef}
         className="flex-1 overflow-auto bg-bg font-mono text-[12px] leading-[18px]"
-        onScroll={handleScroll}
       >
         {empty ? (
           <div className="p-4 text-text-muted italic text-xs">{emptyLabel}</div>
@@ -144,8 +183,9 @@ function FilePane(props: PaneProps) {
 export function FullFileCompare(props: FullFileCompareProps) {
   const { b1, b2, filePath, oldPath, newPath, status, mode, initialViewMode, theme, onClose } = props;
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const leftScrollRef = useRef<HTMLDivElement>(null);
+  const rightScrollRef = useRef<HTMLDivElement>(null);
   const [viewMode, setViewMode] = useState<PaneViewMode>(initialViewMode);
-  const [syncedScrollTop, setSyncedScrollTop] = useState(0);
   const [scrollSync, setScrollSync] = useState(true);
 
   useEffect(() => {
@@ -154,6 +194,61 @@ export function FullFileCompare(props: FullFileCompareProps) {
     dialog.showModal();
     return () => dialog.close();
   }, []);
+
+  // Split-view scroll sync — done with raw DOM listeners + echo counters so
+  // programmatic scrolls don't loop back through React state. Re-running on
+  // every scrollTop change would re-render 1000s of rows → shake.
+  useEffect(() => {
+    if (viewMode !== 'split' || !scrollSync) return;
+    const left = leftScrollRef.current;
+    const right = rightScrollRef.current;
+    if (!left || !right) return;
+
+    // Each counter tracks how many scroll events on that element were caused
+    // by our programmatic sync and should be ignored.
+    const echo = { left: 0, right: 0 };
+    const safetyTimers: { left?: ReturnType<typeof setTimeout>; right?: ReturnType<typeof setTimeout> } = {};
+
+    const releaseLater = (side: 'left' | 'right') => {
+      if (safetyTimers[side]) clearTimeout(safetyTimers[side]);
+      safetyTimers[side] = setTimeout(() => {
+        echo[side] = 0;
+        safetyTimers[side] = undefined;
+      }, 150);
+    };
+
+    const sync = (src: HTMLDivElement, dst: HTMLDivElement, dstSide: 'left' | 'right') => {
+      const target = Math.round(src.scrollTop);
+      if (Math.abs(dst.scrollTop - target) <= 1) return;
+      echo[dstSide]++;
+      releaseLater(dstSide);
+      dst.scrollTop = target;
+    };
+
+    const onLeft = () => {
+      if (echo.left > 0) {
+        echo.left--;
+        return;
+      }
+      sync(left, right, 'right');
+    };
+    const onRight = () => {
+      if (echo.right > 0) {
+        echo.right--;
+        return;
+      }
+      sync(right, left, 'left');
+    };
+
+    left.addEventListener('scroll', onLeft, { passive: true });
+    right.addEventListener('scroll', onRight, { passive: true });
+    return () => {
+      left.removeEventListener('scroll', onLeft);
+      right.removeEventListener('scroll', onRight);
+      if (safetyTimers.left) clearTimeout(safetyTimers.left);
+      if (safetyTimers.right) clearTimeout(safetyTimers.right);
+    };
+  }, [viewMode, scrollSync]);
 
   const { data, isLoading, error } = useQuery(fileDiffOptions(b1, b2, filePath, mode));
   const { highlight, ready } = useHighlighter();
@@ -199,13 +294,6 @@ export function FullFileCompare(props: FullFileCompareProps) {
       deletions: file?.deletions ?? 0,
     };
   }, [data]);
-
-  const handleLeftScroll = (top: number) => {
-    if (scrollSync) setSyncedScrollTop(top);
-  };
-  const handleRightScroll = (top: number) => {
-    if (scrollSync) setSyncedScrollTop(top);
-  };
 
   const title = oldPath && newPath && oldPath !== newPath
     ? `${oldPath} → ${newPath}`
@@ -293,8 +381,7 @@ export function FullFileCompare(props: FullFileCompareProps) {
                 lines={content1Lines}
                 highlighted={leftHighlighted}
                 statusMap={oldStatus}
-                onScroll={handleLeftScroll}
-                scrollTop={syncedScrollTop}
+                scrollRef={leftScrollRef}
                 label={`${b1}${oldPath && oldPath !== filePath ? ` · ${oldPath}` : ''}`}
                 empty={status === 'added'}
                 emptyLabel="File does not exist on this side"
@@ -304,8 +391,7 @@ export function FullFileCompare(props: FullFileCompareProps) {
                 lines={content2Lines}
                 highlighted={rightHighlighted}
                 statusMap={newStatus}
-                onScroll={handleRightScroll}
-                scrollTop={syncedScrollTop}
+                scrollRef={rightScrollRef}
                 label={`${b2}${newPath && newPath !== filePath ? ` · ${newPath}` : ''}`}
                 empty={status === 'deleted'}
                 emptyLabel="File does not exist on this side"
@@ -350,8 +436,8 @@ function UnifiedPane(props: UnifiedPaneProps) {
   const rows = useMemo(() => {
     type Row =
       | { kind: 'context'; oldNum: number; newNum: number; content: string; tokens?: { text: string; color?: string }[] }
-      | { kind: 'delete'; oldNum: number; content: string; tokens?: { text: string; color?: string }[] }
-      | { kind: 'add'; newNum: number; content: string; tokens?: { text: string; color?: string }[] };
+      | { kind: 'delete'; oldNum: number; content: string; tokens?: { text: string; color?: string }[]; wordDiff?: WordDiffSegment[] }
+      | { kind: 'add'; newNum: number; content: string; tokens?: { text: string; color?: string }[]; wordDiff?: WordDiffSegment[] };
 
     const out: Row[] = [];
     let i = 0; // old index
@@ -468,6 +554,19 @@ function UnifiedPane(props: UnifiedPaneProps) {
       }
     }
 
+    for (let k = 0; k < out.length - 1; k++) {
+      const a = out[k];
+      const b = out[k + 1];
+      if (a.kind === 'delete' && b.kind === 'add' && a.content !== b.content) {
+        const maxLen = Math.max(a.content.length, b.content.length);
+        if (maxLen <= 2000) {
+          const segs = computeWordDiff(a.content, b.content);
+          a.wordDiff = segs;
+          b.wordDiff = segs;
+        }
+      }
+    }
+
     return out;
   }, [oldLines, newLines, oldStatus, newStatus, oldHighlighted, newHighlighted]);
 
@@ -495,7 +594,9 @@ function UnifiedPane(props: UnifiedPaneProps) {
                   <td className={`w-1 ${markerClass}`} />
                   <td className="w-4 text-center text-text-muted select-none text-[10px]">{sign}</td>
                   <td className="px-2 whitespace-pre break-all">
-                    {row.tokens && row.tokens.length > 0
+                    {(row.kind === 'delete' || row.kind === 'add') && row.wordDiff
+                      ? renderLineWithWordDiff(row.wordDiff, row.kind, row.tokens)
+                      : row.tokens && row.tokens.length > 0
                       ? renderTokens(row.tokens)
                       : (row.content || <span>&nbsp;</span>)}
                   </td>

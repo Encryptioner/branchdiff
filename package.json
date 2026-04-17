@@ -3,15 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Monorepo root for branchdiff — publishable package lives in packages/cli as @encryptioner/branchdiff",
+  "description": "Monorepo root for branchdiff — publishable package lives in packages/cli as branchdiff (unscoped on npm).",
   "scripts": {
     "build": "tsx scripts/build.ts",
     "dev": "tsx scripts/dev.ts",
     "test": "pnpm -r --filter @branchdiff/git --filter @branchdiff/parser --filter @branchdiff/ui test",
-    "typecheck": "pnpm -r --filter @branchdiff/git --filter @branchdiff/parser --filter @branchdiff/github --filter @encryptioner/branchdiff exec tsc --noEmit",
+    "typecheck": "pnpm -r --filter @branchdiff/git --filter @branchdiff/parser --filter @branchdiff/github --filter branchdiff exec tsc --noEmit",
     "link-dev": "tsx scripts/link-dev.ts",
     "clean": "pnpm -r exec rm -rf dist && rm -rf packages/cli/dist",
-    "release": "pnpm run clean && pnpm run build && cd packages/cli && npm publish"
+    "pack:dry": "pnpm run build && cd packages/cli && npm pack --dry-run",
+    "release:patch": "bash scripts/release/release.sh patch",
+    "release:minor": "bash scripts/release/release.sh minor",
+    "release:major": "bash scripts/release/release.sh major",
+    "release:publish": "pnpm run clean && pnpm run build && cd packages/cli && pnpm publish --provenance"
   },
   "keywords": [
     "git",

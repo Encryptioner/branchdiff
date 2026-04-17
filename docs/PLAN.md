@@ -2,28 +2,29 @@
 
 ## Context
 
-branchdiff is a visual git branch diff tool. The POC (`bin/branchdiff.js`, `src/git.js`, `src/server.js`, `public/index.html`) proves the core concept: **file-level diff** comparing blob hashes at branch tips instead of commit ancestry. Diffity (cloned in `.worktrees/diffity/`) provides a mature React monorepo with diff viewing, comments, GitHub PR, keyboard shortcuts, themes, virtual scrolling, and syntax highlighting.
+branchdiff is a visual git branch diff tool. The POC (`bin/branchdiff.js`, `src/git.js`, `src/server.js`, `public/index.html`) proves the core concept: **file-level diff** comparing blob hashes at branch tips instead of commit ancestry. The production build uses a React monorepo with diff viewing, comments, GitHub PR support, keyboard shortcuts, themes, virtual scrolling, and syntax highlighting.
 
-**Goal**: Clone Diffity's architecture (as a clean copy, not a GitHub fork), rebrand as branchdiff, and add the POC's unique file-level diff features + AI-friendly comment export.
+**Goal**: Build a polished React monorepo around the POC concept, adding file-level diff + AI-friendly comment export as the differentiators.
 
 ---
 
-## Phase 1: Clone & Rebrand (Foundation)
+## Phase 1: Foundation
 
-### 1.1 Copy Diffity monorepo structure into branchdiff
-- Source files already available in `.worktrees/diffity/` (cloned, not forked — avoids "forked from" badge on GitHub)
-- Copy `packages/` (cli, git, parser, ui) from `.worktrees/diffity/`
-- Skip `packages/github` (GitHub PR-specific) and `packages/skills` (AI skills)
-- Copy root config: `tsconfig.json`, `scripts/`
-- Create new `package.json` with workspace references
-- Adapt build scripts for branchdiff
-- Remove Diffity's `.git` history — branchdiff gets a clean repo with only its own commits
+### 1.1 Monorepo layout
+- `packages/cli` — CLI + HTTP server (esbuild bundle)
+- `packages/git` — git CLI wrappers + blob-diff
+- `packages/parser` — unified-diff parser
+- `packages/github` — GitHub PR integration
+- `packages/ui` — React Router 7 SPA (Vite, TanStack Query)
+- Root `package.json` with workspace references + build orchestration
+- Clean git history — only branchdiff's own commits
 
-### 1.2 Rebrand
-- Package names: `@diffity/*` → `@branchdiff/*` (or just `branchdiff`)
-- CLI name: `diffity` → `branchdiff`
+### 1.2 Naming
+- Workspace package names: `@branchdiff/*`
+- Published npm package: `branchdiff` (unscoped)
+- CLI binary: `branchdiff`
 - UI branding: logo, favicon, page titles
-- All descriptions updated
+- All descriptions consistent
 
 ### 1.3 Update dependencies
 - `pnpm-workspace.yaml` for monorepo (convert from npm workspaces)
@@ -93,7 +94,7 @@ GET /api/branches                            → { branches, current }
 GET /api/config                              → { branch1, branch2, mode, repoName }
 ```
 
-Keep existing Diffity routes (`/api/diff`, `/api/info`, `/api/overview`) for working tree diff.
+Keep the working-tree routes (`/api/diff`, `/api/info`, `/api/overview`) alongside the branch routes.
 
 **Key files:**
 - `packages/cli/src/server.ts` — add branch routes
@@ -108,8 +109,8 @@ Keep existing Diffity routes (`/api/diff`, `/api/info`, `/api/overview`) for wor
 - Preserves current view mode and scroll position
 
 ### 3.2 File/Git mode toggle
-- Already have split/unified toggle from Diffity
-- Add "File" / "Git" mode toggle (like POC)
+- Split/unified toggle for diff layout
+- "File" / "Git" mode toggle (from POC)
 - File mode = blob hash comparison
 - Git mode = `git diff` commit-level
 
@@ -118,8 +119,8 @@ Keep existing Diffity routes (`/api/diff`, `/api/info`, `/api/overview`) for wor
 - Multiple instances via different ports
 
 ### 3.4 Folder tree sidebar
-- Diffity already has virtualized file tree with search
-- Add status badges (A/M/D) per file
+- Virtualized file tree with search
+- Status badges (A/M/D) per file
 - Scroll spy to highlight active file
 
 **Key files:**
@@ -132,7 +133,7 @@ Keep existing Diffity routes (`/api/diff`, `/api/info`, `/api/overview`) for wor
 
 ## Phase 4: AI-Friendly Comment System
 
-### 4.1 Comment storage (SQLite — reuse Diffity's)
+### 4.1 Comment storage (SQLite)
 - Thread-based comments on files/lines
 - Severity tags: `[must-fix]`, `[suggestion]`, `[nit]`, `[question]`
 - Status: open / resolved / dismissed
@@ -175,16 +176,15 @@ POST /api/agent/resolve     → AI marks thread resolved
 Design these now, implement fully in Phase 2 (AI features).
 
 **Key files:**
-- `packages/cli/src/review-routes.ts` (extend from Diffity)
-- `packages/cli/src/agent.ts` (adapt from Diffity)
+- `packages/cli/src/review-routes.ts`
+- `packages/cli/src/agent.ts`
 
 ---
 
 ## Phase 5: Polish & Ship
 
 ### 5.1 README.md
-- "Inspired by [Diffity](https://github.com/kamranahmedse/diffity)" — credit where due, but no fork link on profile
-- Use cases: why git diff is problematic, how file-level diff helps
+- Use cases: why `git diff` is problematic, how file-level diff helps
 - Install & usage instructions
 - Screenshots (after UI is built)
 
@@ -227,13 +227,13 @@ Design these now, implement fully in Phase 2 (AI features).
 
 ---
 
-## Key Differentiators from Diffity
+## Key differentiators vs plain `git diff`
 
-| Feature | Diffity | branchdiff |
-|---------|---------|------------|
-| Primary use case | Working tree diff | Branch comparison |
-| Diff method | git diff (commit ancestry) | File-level blob comparison (default) + git fallback |
-| Single branch shorthand | No | Yes (`branchdiff feat`) |
-| Remote refs | No special handling | `origin/branch` fully supported |
+| Feature | `git diff` | branchdiff |
+|---|---|---|
+| Primary use case | Commit-level text diff | Branch / commit / working-tree comparison |
+| Diff method | Commit ancestry | File-level blob comparison (default) + git fallback |
+| Single-branch shorthand | No | Yes (`branchdiff feat`) |
+| Remote refs | Manual | `origin/branch` fully supported |
 | Same content, different history | Shows noise | Shows no diff (correct) |
-| AI comment export | Agent-specific | Structured JSON/markdown export for any AI tool |
+| AI comment export | — | Structured JSON/markdown export for any AI tool |

@@ -1,6 +1,6 @@
 # branchdiff — Overview & Architecture
 
-> Inspired by [Diffity](https://github.com/kamranahmedse/diffity) — a visual git diff tool that opens in the browser.
+A visual git branch / commit / working-tree diff tool that opens in your browser. Runs 100% locally.
 
 ---
 
@@ -142,7 +142,7 @@ POST /api/agent/resolve     → AI marks thread resolved
 | GET | `/api/file-diff` | `b1`, `b2`, `file` | `{ patch, files, content1, content2 }` |
 | GET | `/api/config` | `b1`, `b2`, `mode` | `{ branch1, branch2, mode, repoName }` |
 
-### Working tree routes (from Diffity)
+### Working tree routes
 | Method | Path | Returns |
 |--------|------|---------|
 | GET | `/api/diff` | Unified diff for working tree or ref |

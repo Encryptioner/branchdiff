@@ -1,8 +1,6 @@
 # Development guide
 
-This doc covers working on `branchdiff` locally — cloning the monorepo,
-building, running from source, linking into another project, and publishing
-releases.
+Working on `branchdiff` locally — cloning, building, running from source, linking into another project, and publishing releases.
 
 For end-user install/usage see [USAGE.md](./USAGE.md).
 
@@ -10,19 +8,24 @@ For end-user install/usage see [USAGE.md](./USAGE.md).
 
 ## Repository layout
 
-This is a **pnpm monorepo**. Only `packages/cli` is published to npm (as
-`@encryptioner/branchdiff`); the other packages are internal and bundled into
-the CLI's dist at build time.
+pnpm monorepo. Only `packages/cli` is published to npm (as **`branchdiff`**, unscoped). Other packages are internal and bundled into the CLI's dist at build time.
 
 ```
 branchdiff/
 ├── packages/
-│   ├── cli/          # @encryptioner/branchdiff — the published package
+│   ├── cli/          # branchdiff — the published package
 │   ├── git/          # @branchdiff/git — git CLI wrappers + blob-diff
 │   ├── github/       # @branchdiff/github — gh CLI integration
 │   ├── parser/       # @branchdiff/parser — unified-diff parser
 │   └── ui/           # @branchdiff/ui — React Router 7 client
-├── scripts/          # root build/dev orchestration
+├── scripts/
+│   ├── build.ts      # monorepo build orchestration
+│   ├── dev.ts        # dev-mode watcher
+│   └── release/
+│       └── release.sh  # version bump + tag + push
+├── .github/workflows/
+│   ├── ci.yml        # typecheck + build on PRs
+│   └── publish.yml   # npm publish on v* tag
 ├── docs/
 │   ├── OVERVIEW.md
 │   ├── PLAN.md
@@ -34,20 +37,15 @@ branchdiff/
 
 ## Prerequisites
 
-- **Node.js 20+** (hard requirement — React Router 7 needs it)
-- **pnpm 8+** — `npm install -g pnpm`
+- **Node.js 20+** (hard requirement — React Router 7)
+- **pnpm 10+** — `npm install -g pnpm` (repo is pinned to `pnpm@10.12.1`)
 - **git**
-- macOS / Linux / WSL (the CLI uses POSIX git paths)
-
-Check your versions:
+- macOS / Linux / WSL
 
 ```bash
 node --version   # v20.x or newer
-pnpm --version   # 8.x or newer
+pnpm --version   # 10.x or newer
 ```
-
-If you juggle Node versions, a `.nvmrc` is recommended — the project works on
-Node 20 LTS and Node 22.
 
 ---
 
@@ -59,8 +57,7 @@ cd branchdiff
 pnpm install
 ```
 
-First install triggers a build of `better-sqlite3`'s native addon. If that
-fails, run `pnpm rebuild better-sqlite3`.
+First install builds `better-sqlite3`'s native addon. If that fails, `pnpm rebuild better-sqlite3`.
 
 ---
 
@@ -70,39 +67,30 @@ fails, run `pnpm rebuild better-sqlite3`.
 pnpm build
 ```
 
-What this does (in order, from `scripts/build.ts`):
+What happens (`scripts/build.ts`):
 
 1. `@branchdiff/parser` → `tsc` → `packages/parser/dist`
 2. `@branchdiff/git` → `tsc` → `packages/git/dist`
 3. `@branchdiff/github` → `tsc` → `packages/github/dist`
 4. `@branchdiff/ui` → `react-router build` → `packages/cli/dist/ui/`
-   *(the server phase fails under pnpm strict mode — this is expected and
-   handled; a static `index.html` is regenerated from the Vite manifest)*
-5. `@encryptioner/branchdiff` → `esbuild` bundles everything above into
-   `packages/cli/dist/index.js`
-6. `README.md` + `LICENSE.md` are copied from the repo root into
-   `packages/cli/` so they ship with the npm package
+5. `branchdiff` (cli) → `esbuild` bundles everything above → `packages/cli/dist/index.js`
+6. `README.md` + `LICENSE.md` are copied from the repo root into `packages/cli/` so they ship with the npm package
 
 Artifacts:
-
 - `packages/cli/dist/index.js` — the CLI entry (run with `node`)
-- `packages/cli/dist/ui/client/` — static assets served by the CLI's HTTP
-  server
+- `packages/cli/dist/ui/client/` — static assets served by the CLI's HTTP server
 
 ---
 
 ## Run from source
 
-### Without building (fastest iteration)
-
 ```bash
 pnpm dev
 ```
 
-This runs `scripts/dev.ts` which uses `tsx` to execute the CLI directly from
-TypeScript and watches the UI in dev mode.
+Uses `tsx` to run the CLI directly from TypeScript with UI in dev mode.
 
-### Against a real repo, from the built dist
+Or against the built dist:
 
 ```bash
 pnpm build
@@ -114,23 +102,16 @@ node /path/to/branchdiff/packages/cli/dist/index.js main..feature
 
 ## Using your local build in another project
 
-There are three patterns, in increasing order of "feels like a real install".
+Three patterns, increasing "feels like a real install":
 
-### 1. Direct invocation (zero setup)
-
-Just run the built binary with `node`:
+### 1. Direct invocation
 
 ```bash
 cd /path/to/target-repo
 node /absolute/path/to/branchdiff/packages/cli/dist/index.js
 ```
 
-Useful for one-off testing.
-
-### 2. `pnpm link --global` (dev-loop friendly)
-
-Link the CLI globally, then use the `branchdiff` command as if it were
-published. Rebuilding the CLI is picked up immediately — no reinstall.
+### 2. `pnpm link --global`
 
 ```bash
 # inside the branchdiff repo
@@ -138,90 +119,34 @@ pnpm build
 cd packages/cli
 pnpm link --global
 
-# now in any other terminal
-branchdiff --version          # runs your local build
+# now in any terminal
+branchdiff --version          # your local build
 ```
 
-To unlink:
+Unlink: `cd packages/cli && pnpm unlink --global`.
 
-```bash
-cd packages/cli
-pnpm unlink --global
-```
+### 3. `pnpm pack` → install from tarball
 
-**npm equivalent:**
-
-```bash
-cd packages/cli
-npm link                      # registers globally
-# in target
-npm link @encryptioner/branchdiff
-# to undo:
-npm unlink -g @encryptioner/branchdiff
-```
-
-### 3. `pnpm pack` → install from tarball (closest to real publish)
-
-This simulates exactly what `npm install @encryptioner/branchdiff` will do.
-Use it to verify the published package before releasing.
+Closest to the real `npm install branchdiff` experience:
 
 ```bash
 cd packages/cli
 pnpm pack
-# produces encryptioner-branchdiff-0.1.0.tgz
+# produces branchdiff-0.1.0.tgz
 
 # in another project
-pnpm add /absolute/path/to/encryptioner-branchdiff-0.1.0.tgz
-# or
-npm install /absolute/path/to/encryptioner-branchdiff-0.1.0.tgz
+pnpm add /absolute/path/to/branchdiff-0.1.0.tgz
 ```
 
-Tip: run `npm pack --dry-run` first to preview the file list without creating
-the tarball.
-
-### 4. `file:` / `link:` protocol in `package.json`
-
-For a project that should always pick up your local branchdiff:
-
-```json
-{
-  "devDependencies": {
-    "@encryptioner/branchdiff": "file:/absolute/path/to/branchdiff/packages/cli"
-  }
-}
-```
-
-`file:` copies on install (stable); `link:` symlinks (picks up rebuilds
-without reinstall). Both work with pnpm and npm.
-
----
-
-## Dev loop
-
-Typical cycle while hacking on the CLI:
-
-```bash
-# terminal 1 — watch build
-pnpm --filter @encryptioner/branchdiff run dev:watch
-
-# terminal 2 — run against a test repo
-cd /some/test/repo
-node /path/to/branchdiff/packages/cli/dist/index.js
-```
-
-Or, if you've `pnpm link`-ed globally, just `branchdiff` from the test repo.
-
-For UI-only work, `pnpm --filter @branchdiff/ui run dev` gives you the
-React Router dev server with hot reload, but you'll need the CLI running
-separately to serve the data APIs.
+Tip: `npm pack --dry-run` previews the file list without writing.
 
 ---
 
 ## Testing
 
 ```bash
-pnpm test                     # runs tests in git + parser + ui
-pnpm typecheck                # all packages
+pnpm test          # git + parser + ui
+pnpm typecheck     # all packages
 ```
 
 Individual package:
@@ -235,52 +160,94 @@ pnpm --filter @branchdiff/git test:watch
 
 ## Releasing to npm
 
-The `release` script handles clean → build → publish:
+Releases are **tag-driven and fully automated** via GitHub Actions. You bump the version and push a tag; CI builds, publishes to npm with provenance, and creates a GitHub release.
+
+### One-time setup (project owner only)
+
+Required once per repo:
+
+1. **Create a granular npm access token**
+   - npm → *Profile* → *Access Tokens* → *Generate New Token* → **Granular Access Token**
+   - Token name: `branchdiff GitHub Actions`
+   - Expiration: 90 days (or your preference)
+   - Packages and scopes: **Read and write** → select package `branchdiff`
+   - Copy the token (starts with `npm_…`) — you won't see it again.
+
+2. **Add it to GitHub**
+   - Your GitHub repo → *Settings* → *Secrets and variables* → *Actions*
+   - *New repository secret* → name `NPM_TOKEN`, value the token → *Add*.
+
+3. **Confirm npm name ownership**
+   - First publish auto-claims the `branchdiff` name (if available).
+   - Check: `npm view branchdiff` — 404 means available.
+
+### Release flow (every release)
 
 ```bash
-# 1. Bump version
-#    edit packages/cli/package.json -> "version"
-#    edit packages/cli/CHANGELOG.md with release notes
+# 0. Update the changelog
+#    edit packages/cli/CHANGELOG.md with the new version's notes
+git add packages/cli/CHANGELOG.md
+git commit -m "docs: changelog for vX.Y.Z"
 
-# 2. Commit + tag
-git commit -am "chore: release vX.Y.Z"
-git tag vX.Y.Z
+# 1. Run the release script — bumps version, commits, tags, pushes
+pnpm run release:patch   # 0.1.0 → 0.1.1 (bug fixes)
+# or
+pnpm run release:minor   # 0.1.0 → 0.2.0 (new features)
+# or
+pnpm run release:major   # 0.1.0 → 1.0.0 (breaking changes)
 
-# 3. Publish
-pnpm run release
-#    which does:
-#    pnpm clean && pnpm build && cd packages/cli && npm publish
+# 2. Watch GitHub Actions publish it
+#    https://github.com/Encryptioner/branchdiff/actions
+
+# 3. Verify on npm (within a minute)
+npm view branchdiff version
 ```
 
-### First-time publisher setup
+The `release.sh` script:
+1. Checks the working tree is clean and you're on `master` (override `RELEASE_ALLOW_BRANCH=1` for hotfix branches).
+2. Runs `pnpm build` as a local smoke test.
+3. Bumps `packages/cli/package.json` version.
+4. Commits, tags `vX.Y.Z`, pushes branch + tag to the GitHub remote.
+5. `.github/workflows/publish.yml` fires on the tag:
+   - `pnpm typecheck` + `pnpm build` on Ubuntu / Node 20
+   - Verifies `packages/cli/package.json` version matches the tag
+   - `npm pack --dry-run` to log what ships
+   - `pnpm publish --access public --provenance` from `packages/cli/`
+   - Creates a GitHub release with auto-generated notes
+
+### Manual publish (emergency)
+
+If Actions are down or you need a local-only dry-run:
 
 ```bash
-npm login
-npm whoami                    # verify
-
-# confirm scope access
-npm access list packages @encryptioner
+pnpm pack:dry              # preview shipped files
+pnpm run release:publish   # clean + build + pnpm publish --provenance (local npm auth)
 ```
 
-The package is published with `publishConfig.access: public` (required for
-scoped packages on the free tier).
+You'll need `npm login` first. Prefer the tag-driven flow — it leaves a clean audit trail.
 
-### Dry run
-
-Always sanity-check before a real publish:
+### Previewing what ships
 
 ```bash
-cd packages/cli
-npm pack --dry-run            # lists files that would ship
-npm publish --dry-run         # simulates the full publish
+pnpm pack:dry
+# runs a full build then `npm pack --dry-run` from packages/cli
 ```
 
-### After publish
+Expected contents: `dist/index.js`, `dist/ui/client/**`, `README.md`, `LICENSE.md`, `CHANGELOG.md`, `package.json`. Tarball should be ~3 MB (the Shiki grammar chunks are the bulk — they lazy-load at runtime so they don't cost first-paint).
+
+### If a release fails mid-publish
+
+- `NPM_TOKEN` expired → rotate it, re-run the workflow from the Actions tab (workflow_dispatch accepts the tag).
+- Wrong version in `package.json` → the workflow fails fast on the version-check step; bump properly and re-tag.
+- Already published version → npm rejects republishes. Bump to the next patch and re-tag.
+
+Unpublish (within 24h, if you really must):
 
 ```bash
-git push && git push --tags
-# optionally create a GitHub release from the tag
+npm unpublish branchdiff@X.Y.Z
 ```
+
+After 24h, use `npm deprecate branchdiff@X.Y.Z "broken, use X.Y.Z+1"` instead.
 
 ---
 
@@ -299,33 +266,22 @@ Update `packages/cli/CHANGELOG.md` on every release.
 ## Troubleshooting
 
 ### `pnpm build` — UI server build fails
-
-Expected. `scripts/build.ts` catches it and regenerates `index.html` from the
-Vite manifest. If you see *other* errors after that message, those are real.
+Expected on pnpm strict mode. `scripts/build.ts` catches it and regenerates `index.html` from the Vite manifest.
 
 ### Native module errors after switching Node versions
-
 ```bash
 pnpm rebuild
-# or specifically:
-npm rebuild better-sqlite3 --build-from-source
 ```
 
 ### `pnpm link` didn't take effect
-
-pnpm's global store location varies. Check:
-
 ```bash
 pnpm root -g
 echo $PATH | tr ':' '\n' | grep pnpm
 ```
-
 Make sure `$(pnpm root -g)/../bin` is on your `PATH`.
 
 ### Workspace package imports fail at runtime
-
-Make sure you ran `pnpm build` — the CLI bundles the workspace packages, so
-they must be built (or tsx must be running them directly in dev).
+Run `pnpm build` — the CLI bundles the workspace packages; they must be built (or `tsx` must be running them directly in dev).
 
 ---
 

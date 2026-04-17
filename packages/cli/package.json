@@ -1,5 +1,5 @@
 {
-  "name": "@encryptioner/branchdiff",
+  "name": "branchdiff",
   "version": "0.1.0",
   "description": "Visual file-level git branch diff in your browser",
   "keywords": [
@@ -66,8 +66,5 @@
   },
   "engines": {
     "node": ">=20"
-  },
-  "publishConfig": {
-    "access": "public"
   }
 }

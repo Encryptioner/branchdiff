@@ -172,7 +172,7 @@ export function handleReviewRoute(req: IncomingMessage, res: ServerResponse, pat
       const lines: string[] = [
         `# Review Comments — ${sid}`,
         '',
-        `**Summary:** ${total} threads (${open} open, ${resolved} resolved, ${dismiss} dismissed)`,
+        `**Summary:** ${total} threads (${open} open, ${resolved} resolved, ${dismissed} dismissed)`,
         '',
       ];
 

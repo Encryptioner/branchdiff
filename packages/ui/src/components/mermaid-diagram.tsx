@@ -1,10 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
-import mermaid from 'mermaid';
+import type { Mermaid } from 'mermaid';
 import { XIcon } from './icons/x-icon';
 
+// Mermaid (~800KB) is dynamic-imported on first use. Diffs without embedded
+// diagrams (the common case) never pay the cost.
+let mermaidPromise: Promise<Mermaid> | null = null;
 let initialized = false;
 
-function initMermaid(isDark: boolean) {
+function getMermaid(): Promise<Mermaid> {
+  if (!mermaidPromise) {
+    mermaidPromise = import('mermaid').then(m => m.default);
+  }
+  return mermaidPromise;
+}
+
+function initMermaid(mermaid: Mermaid, isDark: boolean) {
   mermaid.initialize({
     startOnLoad: false,
     theme: isDark ? 'dark' : 'default',
@@ -31,29 +41,28 @@ export function MermaidDiagram(props: { chart: string }) {
       return;
     }
 
-    const isDark = document.documentElement.classList.contains('dark');
-    if (!initialized) {
-      initMermaid(isDark);
-    }
-
     let cancelled = false;
 
-    mermaid
-      .render(idRef.current, props.chart)
-      .then(({ svg }) => {
-        if (cancelled) {
-          return;
-        }
+    (async () => {
+      const mermaid = await getMermaid();
+      if (cancelled) return;
+
+      if (!initialized) {
+        const isDark = document.documentElement.classList.contains('dark');
+        initMermaid(mermaid, isDark);
+      }
+
+      try {
+        const { svg } = await mermaid.render(idRef.current, props.chart);
+        if (cancelled) return;
         container.innerHTML = svg;
         setSvgContent(svg);
         setError(null);
-      })
-      .catch(() => {
-        if (cancelled) {
-          return;
-        }
+      } catch {
+        if (cancelled) return;
         setError('Failed to render diagram');
-      });
+      }
+    })();
 
     return () => {
       cancelled = true;
