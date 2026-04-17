@@ -45,7 +45,7 @@
     "dev:watch": "tsx build.ts --watch",
     "clean": "rm -rf dist",
     "prepublishOnly": "echo '\\n⚠️  Run `pnpm build` from repo root before publishing (bundles workspace packages + UI).\\n'",
-    "postinstall": "pnpm rebuild better-sqlite3"
+    "postinstall": "node dist/index.js completion install 2>/dev/null; pnpm rebuild better-sqlite3"
   },
   "dependencies": {
     "better-sqlite3": "^11.0.0",

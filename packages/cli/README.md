@@ -65,6 +65,26 @@ branchdiff tree                         # file browser
 
 **Full reference:** [docs/guideline/USAGE.md](./docs/guideline/USAGE.md)
 
+## AI-assisted review
+
+Any AI assistant (Claude Code, Cursor, Copilot, Gemini) can review code through the `branchdiff agent` CLI — no plugin or MCP server required.
+
+```bash
+# Start branchdiff first (leave it running)
+branchdiff main feat
+
+# Then in your agent chat:
+branchdiff agent diff                                    # read the full diff
+branchdiff agent comment --file src/app.ts --line 42 \
+  --body "[must-fix] Missing null check"                # post a review comment
+branchdiff agent list --status open --json               # check open threads
+branchdiff agent resolve abc123de --summary "Fixed"      # mark thread resolved
+```
+
+**Severity tags:** `[must-fix]` `[suggestion]` `[nit]` `[question]` — put at start of comment body.
+
+**Built-in workflows:** review, resolve, tour, summary, security audit, test gaps, dependency review, breaking-change detection. See [AI-REVIEW.md](./docs/guideline/AI-REVIEW.md) for prompt templates.
+
 ## Features
 
 - **File-level diff** — compares blob hashes, skips identical content regardless of commit history
@@ -94,8 +114,6 @@ branchdiff main feat
 branchdiff main feat --mode file
 ```
 
-![File Mode — blob comparison](docs/assets/file-mode-screenshot.png)
-
 ### Git mode (standard `git diff`)
 
 Uses **commit ancestry** comparison (`git diff branch1..branch2`).
@@ -106,8 +124,6 @@ Uses **commit ancestry** comparison (`git diff branch1..branch2`).
 ```bash
 branchdiff main feat --mode git
 ```
-
-![Git Mode — commit diff](docs/assets/git-mode-screenshot.png)
 
 **Key difference:**
 ```

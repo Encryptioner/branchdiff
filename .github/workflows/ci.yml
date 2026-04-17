@@ -43,7 +43,10 @@ jobs:
       - name: Verify build artifacts
         run: |
           test -f packages/cli/dist/index.js || (echo "missing packages/cli/dist/index.js" && exit 1)
-          test -f packages/cli/dist/ui/client/index.html || (echo "missing bundled UI" && exit 1)
+          # UI only builds on Node 20+ (React Router 7 requirement)
+          if [ "$(node -e "console.log(process.versions.node.split('.')[0])")" -ge 20 ]; then
+            test -f packages/cli/dist/ui/client/index.html || (echo "missing bundled UI" && exit 1)
+          fi
           ls -la packages/cli/dist
 
       - name: Dry-run pack

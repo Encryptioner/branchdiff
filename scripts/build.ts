@@ -8,6 +8,9 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
 
+const [major] = process.versions.node.split('.').map(Number);
+const nodeTooOldForUI = major < 20;
+
 // Build library packages first (dependency order matters)
 const libSteps = [
   'pnpm --filter @branchdiff/parser run build',
@@ -19,9 +22,15 @@ for (const step of libSteps) {
   execSync(step, { stdio: 'inherit', cwd: root });
 }
 
-// UI build: React Router 7 with ssr:false generates index.html automatically.
-// Server phase may warn under pnpm strict mode but client build always succeeds.
-execSync('pnpm --filter @branchdiff/ui run build', { stdio: 'inherit', cwd: root });
+// UI build: React Router 7 requires Node 20+ (rolldown uses util.styleText).
+if (nodeTooOldForUI) {
+  console.warn(
+    `\n⚠️  Skipping UI build: Node ${process.version} is below the minimum (20). ` +
+    `The CLI will bundle without the UI. Use Node 20+ for a full build.\n`,
+  );
+} else {
+  execSync('pnpm --filter @branchdiff/ui run build', { stdio: 'inherit', cwd: root });
+}
 
 // Build CLI (bundles with esbuild)
 execSync('pnpm --filter branchdiff run build', { stdio: 'inherit', cwd: root });

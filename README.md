@@ -114,8 +114,6 @@ branchdiff main feat
 branchdiff main feat --mode file
 ```
 
-![File Mode — blob comparison](docs/assets/file-mode-screenshot.png)
-
 ### Git mode (standard `git diff`)
 
 Uses **commit ancestry** comparison (`git diff branch1..branch2`).
@@ -126,8 +124,6 @@ Uses **commit ancestry** comparison (`git diff branch1..branch2`).
 ```bash
 branchdiff main feat --mode git
 ```
-
-![Git Mode — commit diff](docs/assets/git-mode-screenshot.png)
 
 **Key difference:**
 ```
