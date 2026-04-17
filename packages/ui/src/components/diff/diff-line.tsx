@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { DiffLine as DiffLineType } from '@branchdiff/parser';
 import { cn } from '../../lib/cn';
 import { getLineBg } from '../../lib/diff-utils';
@@ -40,7 +41,7 @@ function getPrefixColor(type: string): string {
   }
 }
 
-export function DiffLine(props: DiffLineProps) {
+function DiffLineImpl(props: DiffLineProps) {
   const { line, syntaxTokens, expanded, isSelected, onLineMouseDown, onLineMouseEnter, onCommentClick } = props;
 
   const side: CommentSide = line.type === 'delete' ? 'old' : 'new';
@@ -76,3 +77,17 @@ export function DiffLine(props: DiffLineProps) {
     </tr>
   );
 }
+
+/**
+ * Memoized: `line` and `syntaxTokens` are stable references per-row; `isSelected`
+ * and `expanded` are primitives. Callback props are treated as stable dispatchers —
+ * they don't alter rendering behavior based on identity, only on invocation.
+ */
+export const DiffLine = memo(DiffLineImpl, (prev, next) => {
+  return (
+    prev.line === next.line &&
+    prev.syntaxTokens === next.syntaxTokens &&
+    prev.expanded === next.expanded &&
+    prev.isSelected === next.isSelected
+  );
+});

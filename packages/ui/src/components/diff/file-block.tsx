@@ -27,6 +27,8 @@ import { OrphanedThreads } from '../comments/orphaned-threads';
 import { ThreadBadge } from '../ui/thread-badge';
 import { buildExpansionSyntaxMap, renderExpansionRows } from './render-expansion-rows';
 import { ExpandRow } from './expand-row';
+import { FullFileCompare } from './full-file-compare';
+import { ExpandAllIcon } from '../icons/expand-all-icon';
 
 export const LARGE_DIFF_LINE_THRESHOLD = 200;
 
@@ -59,6 +61,8 @@ interface FileBlockProps {
   highlighted?: boolean;
   onHighlightEnd?: () => void;
   showFullDiff?: boolean;
+  branchCompare?: { b1: string; b2: string; mode: 'file' | 'git' };
+  theme?: 'light' | 'dark';
 }
 
 interface GapExpansion {
@@ -72,8 +76,9 @@ export function FileBlock(props: FileBlockProps) {
   const {
     file, viewMode, collapsed, onToggleCollapse, reviewed, onReviewedChange, highlightLine, baseRef, canRevert, onRevert,
     threads: allThreads, commentsEnabled, commentActions, onAddThread: rawAddThread, pendingSelection, onPendingSelectionChange,
-    highlighted, onHighlightEnd, showFullDiff,
+    highlighted, onHighlightEnd, showFullDiff, branchCompare, theme,
   } = props;
+  const [fullFileOpen, setFullFileOpen] = useState(false);
 
   const totalLines = getTotalLineCount(file);
   const isLargeDiff = totalLines >= LARGE_DIFF_LINE_THRESHOLD;
@@ -446,6 +451,16 @@ export function FileBlock(props: FileBlockProps) {
               ))}
             </div>
           </div>
+          {branchCompare && !file.isBinary && file.status !== 'deleted' && (
+            <button
+              onClick={() => setFullFileOpen(true)}
+              className="flex items-center gap-1 text-[11px] text-text-muted hover:text-accent cursor-pointer transition-colors"
+              title="Compare full file contents"
+            >
+              <ExpandAllIcon className="w-3 h-3" />
+              Full file
+            </button>
+          )}
           <label className="flex items-center gap-1.5 text-[11px] text-text-muted cursor-pointer select-none hover:text-text transition-colors">
             <input
               type="checkbox"
@@ -579,6 +594,20 @@ export function FileBlock(props: FileBlockProps) {
           message="This will undo the selected change. This cannot be undone."
           onConfirm={() => handleRevertChange(confirmRevertChange)}
           onCancel={() => setConfirmRevertChange(null)}
+        />
+      )}
+      {fullFileOpen && branchCompare && (
+        <FullFileCompare
+          b1={branchCompare.b1}
+          b2={branchCompare.b2}
+          mode={branchCompare.mode}
+          filePath={filePath}
+          oldPath={file.oldPath}
+          newPath={file.newPath}
+          status={file.status}
+          initialViewMode={viewMode}
+          theme={theme ?? 'light'}
+          onClose={() => setFullFileOpen(false)}
         />
       )}
     </div>

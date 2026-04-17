@@ -22,13 +22,27 @@
 - Node 18 works for CLI/git/parser but not UI build
 
 ## Branch Comparison Modes
-- `mode=file` (default): blob hash comparison via `getBlobMap()` → `compareBranches()`
-- `mode=git`: standard `git diff branch1..branch2`
+- `mode=file` (default): blob hash comparison via `getBlobMap()` → `compareBranches()` — skips files with identical content regardless of commit ancestry
+- `mode=git`: `git diff b1..b2` (two-dot, tip-vs-tip) — surfaces commit-path noise
 - API routes: `/api/compare`, `/api/file-diff`, `/api/branches`, `/api/config`
+- `/api/file-diff` returns `{ patch, files, content1, content2 }` — both full file contents are always included, so the client never needs a second round-trip for full-file view.
+
+## UI Conventions
+- Modals use the native `<dialog>` element — see `shortcut-modal.tsx` for the canonical pattern (`showModal()` in effect, `::backdrop` styling, backdrop-click closes).
+- File list virtualization lives in `diff-view.tsx` via `@tanstack/react-virtual` — at the file level only. Hunks/lines inside a file are not virtualized; large files are gated behind the `LARGE_DIFF_LINE_THRESHOLD = 200` placeholder in `file-block.tsx`.
+- TanStack Query cache keys live in `packages/ui/src/queries/*` — reuse these options objects rather than calling `fetch` directly.
+
+## Performance Gotchas
+- `diff-page.tsx` previously pre-fetched `/api/file-diff` for every changed file via `Promise.all`. Lazy-load on viewport intersection instead — a 500-file PR will DoS the server otherwise.
+- `server.ts` uses `execSync` for git calls, which blocks the entire Node HTTP thread. Prefer `execFile` (promisified) on hot paths.
+- Shiki and Mermaid are heavy (~3MB gzipped combined). Import dynamically where possible.
 
 ## Files to Know
-- `packages/git/src/blob-diff.ts` — core file-level diff logic
-- `packages/cli/src/server.ts` — all API routes
+- `packages/git/src/blob-diff.ts` — core file-level diff logic (`compareBranches`, `getBranchFileContent`)
+- `packages/cli/src/server.ts` — all API routes; `/api/compare` (line ~599), `/api/file-diff` (line ~648)
 - `packages/cli/src/review-routes.ts` — comment + agent endpoints
-- `packages/ui/src/routes/diff.tsx` — main diff page route
+- `packages/ui/src/routes/diff.tsx` — main diff page loader
+- `packages/ui/src/components/diff/diff-page.tsx` — orchestrates state, drives DiffView
+- `packages/ui/src/components/diff/file-block.tsx` — per-file rendering, gap expansion, Shiki highlighting
+- `packages/ui/src/components/layout/shortcut-modal.tsx` — modal pattern reference
 - `docs/PLAN.md` — full build plan and phase tracking

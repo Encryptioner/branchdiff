@@ -65,39 +65,48 @@ export function DiffPage() {
     : null;
   const branchCommits = branchCommitsResult?.data?.commits;
 
-  // Track file diffs for branch comparison
+  // Per-file diff data (populated lazily as files come into viewport)
   const [fileDiffs, setFileDiffs] = useState<Map<string, DiffFile>>(new Map());
+  const inFlightRef = useRef<Set<string>>(new Set());
 
-  // Fetch file diffs when branch comparison data is available
+  // Reset cache when branch pair or mode changes
   useEffect(() => {
-    if (!isBranchComparison || !branchDiff.data || !b1 || !b2) {
-      return;
+    setFileDiffs(new Map());
+    inFlightRef.current = new Set();
+  }, [b1, b2, mode]);
+
+  const requestFileDiffs = useCallback((paths: string[]) => {
+    if (!isBranchComparison || !b1 || !b2) return;
+    for (const path of paths) {
+      if (fileDiffs.has(path) || inFlightRef.current.has(path)) continue;
+      inFlightRef.current.add(path);
+      queryClient
+        .ensureQueryData(fileDiffOptions(b1, b2, path, mode))
+        .then(fileDiff => {
+          const parsed = fileDiff.files?.files?.[0];
+          if (!parsed) return;
+          setFileDiffs(prev => {
+            if (prev.has(path)) return prev;
+            const next = new Map(prev);
+            next.set(path, parsed);
+            return next;
+          });
+        })
+        .catch(() => {})
+        .finally(() => {
+          inFlightRef.current.delete(path);
+        });
     }
+  }, [isBranchComparison, b1, b2, mode, queryClient, fileDiffs]);
 
-    const files = branchDiff.data.files;
-
-    // Fetch diffs for all files in parallel
-    Promise.all(
-      files.map(f =>
-        queryClient.ensureQueryData(fileDiffOptions(b1, b2, f.path, mode))
-          .then(fileDiff => {
-            if (fileDiff.files?.files?.[0]) {
-              return { path: f.path, file: fileDiff.files.files[0] };
-            }
-            return null;
-          })
-          .catch(() => null)
-      )
-    ).then(results => {
-      const newFileDiffs = new Map<string, DiffFile>();
-      results.forEach(result => {
-        if (result) {
-          newFileDiffs.set(result.path, result.file);
-        }
-      });
-      setFileDiffs(newFileDiffs);
-    });
-  }, [isBranchComparison, branchDiff.data, b1, b2, mode, queryClient]);
+  // Warm prefetch: first 10 files so the initial viewport loads instantly
+  useEffect(() => {
+    if (!isBranchComparison || !branchDiff.data) return;
+    const initial = branchDiff.data.files.slice(0, 10).map(f => f.path);
+    requestFileDiffs(initial);
+    // requestFileDiffs intentionally omitted — it's stable enough and we only want to fire on data change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBranchComparison, branchDiff.data]);
 
   // Normalize branch comparison data to ParsedDiff-like format
   const diff = isBranchComparison
@@ -504,6 +513,8 @@ export function DiffPage() {
             pendingSelection={pendingSelection}
             onPendingSelectionChange={setPendingSelection}
             showFullDiff={showFullDiff}
+            branchCompare={isBranchComparison && b1 && b2 ? { b1, b2, mode } : undefined}
+            onRequestFileDiffs={isBranchComparison ? requestFileDiffs : undefined}
           />
         ) : null}
       </div>

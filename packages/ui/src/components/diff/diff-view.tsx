@@ -48,6 +48,8 @@ interface DiffViewProps {
   pendingSelection: LineSelection | null;
   onPendingSelectionChange: (selection: LineSelection | null) => void;
   showFullDiff?: boolean;
+  branchCompare?: { b1: string; b2: string; mode: 'file' | 'git' };
+  onRequestFileDiffs?: (paths: string[]) => void;
 }
 
 function estimateFileHeight(file: { hunks: { lines: { length: number } }[]; isBinary: boolean }, collapsed: boolean): number {
@@ -73,7 +75,8 @@ export function DiffView(props: DiffViewProps) {
     reviewedFiles, onReviewedChange, onActiveFileChange, scrollRef,
     handle, baseRef, canRevert, onRevert,
     threads, commentsEnabled, commentActions, onAddThread,
-    pendingSelection, onPendingSelectionChange, showFullDiff,
+    pendingSelection, onPendingSelectionChange, showFullDiff, branchCompare,
+    onRequestFileDiffs,
   } = props;
   const { highlight } = useHighlighter();
   const scrollElementRef = useRef<HTMLElement>(null);
@@ -250,6 +253,17 @@ export function DiffView(props: DiffViewProps) {
       ]
     : [0, 0];
 
+  // Lazy-load branch-compare file diffs as they scroll into view.
+  useEffect(() => {
+    if (!onRequestFileDiffs || items.length === 0) return;
+    const paths: string[] = [];
+    for (const item of items) {
+      const file = diff.files[item.index];
+      if (file) paths.push(getFilePath(file));
+    }
+    if (paths.length > 0) onRequestFileDiffs(paths);
+  }, [items, diff.files, onRequestFileDiffs]);
+
   return (
     <main
       ref={(node) => {
@@ -301,6 +315,8 @@ export function DiffView(props: DiffViewProps) {
                 pendingSelection={pendingSelection}
                 onPendingSelectionChange={onPendingSelectionChange}
                 showFullDiff={showFullDiff}
+                branchCompare={branchCompare}
+                theme={theme}
               />
             </div>
           );

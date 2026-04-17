@@ -5,6 +5,27 @@ import {
 } from 'node:http';
 import { createHash } from 'node:crypto';
 import { execSync, execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
+
+/**
+ * Run a git command asynchronously. Safer than `execSync` because arguments are
+ * passed as an array (no shell quoting), and the Node HTTP event loop isn't
+ * blocked while git runs — important on repos where a single diff can take
+ * several hundred milliseconds.
+ */
+async function gitAsync(args: string[], maxBuffer = 20 * 1024 * 1024): Promise<string> {
+  try {
+    const { stdout } = await execFileAsync('git', args, {
+      encoding: 'utf-8',
+      maxBuffer,
+    });
+    return stdout;
+  } catch {
+    return '';
+  }
+}
 import { readFileSync, existsSync } from 'node:fs';
 import { join, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -607,27 +628,19 @@ export function startServer(options: ServerOptions): Promise<ServerResult> {
 
           let files: Array<{ path: string; status: 'added' | 'modified' | 'deleted' }>;
           if (mode === 'git') {
-            // Git mode: use standard git diff
-            try {
-              const output = execSync(`git diff ${b1}..${b2} --name-status`, {
-                encoding: 'utf-8',
-                stdio: ['pipe', 'pipe', 'pipe'],
+            // Git mode: use standard git diff (async — doesn't block event loop)
+            const output = await gitAsync(['diff', `${b1}..${b2}`, '--name-status']);
+            files = output
+              .split('\n')
+              .filter(Boolean)
+              .map(line => {
+                const [status, ...pathParts] = line.split('\t');
+                const path = pathParts.join('\t');
+                let s: 'added' | 'modified' | 'deleted' = 'modified';
+                if (status === 'A') s = 'added';
+                else if (status === 'D') s = 'deleted';
+                return { path, status: s };
               });
-              files = output
-                .split('\n')
-                .filter(Boolean)
-                .map(line => {
-                  const [status, ...pathParts] = line.split('\t');
-                  const path = pathParts.join('\t');
-                  // Map git status codes to our format
-                  let s: 'added' | 'modified' | 'deleted' = 'modified';
-                  if (status === 'A') s = 'added';
-                  else if (status === 'D') s = 'deleted';
-                  return { path, status: s };
-                });
-            } catch {
-              files = [];
-            }
           } else {
             // File mode: use blob comparison (default)
             files = compareBranches(b1, b2);
@@ -659,21 +672,11 @@ export function startServer(options: ServerOptions): Promise<ServerResult> {
 
           let patch = '';
           if (mode === 'git') {
-            // Git mode: standard commit-based diff
-            try {
-              patch = execSync(
-                `git diff "${b1}".."${b2}" -- "${file}"`,
-                { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 20 * 1024 * 1024 },
-              );
-            } catch {}
+            // Git mode: standard commit-based diff (async)
+            patch = await gitAsync(['diff', `${b1}..${b2}`, '--', file]);
           } else if (content1 !== null && content2 !== null) {
             // File mode, both sides exist: compare blobs directly for proper diff with context
-            try {
-              patch = execSync(
-                `git diff "${b1}:${file}" "${b2}:${file}"`,
-                { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 20 * 1024 * 1024 },
-              );
-            } catch {}
+            patch = await gitAsync(['diff', `${b1}:${file}`, `${b2}:${file}`]);
           } else if (content1 === null && content2 !== null) {
             // File was added: all lines are additions
             const lines = content2.split('\n');

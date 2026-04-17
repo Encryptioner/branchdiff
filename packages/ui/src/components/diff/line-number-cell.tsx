@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { cn } from '../../lib/cn';
 
 interface LineNumberCellProps {
@@ -7,7 +8,7 @@ interface LineNumberCellProps {
 
 const baseClass = 'w-12.5 min-w-12.5 px-2 text-right text-text-muted select-none cursor-pointer align-top text-xs leading-6';
 
-export function LineNumberCell(props: LineNumberCellProps) {
+export const LineNumberCell = memo(function LineNumberCell(props: LineNumberCellProps) {
   const { lineNumber, className } = props;
 
   return (
@@ -15,4 +16,4 @@ export function LineNumberCell(props: LineNumberCellProps) {
       {lineNumber ?? ''}
     </td>
   );
-}
+});
