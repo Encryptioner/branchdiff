@@ -18,8 +18,9 @@
 - TanStack Query for data fetching in UI
 
 ## Node Version
-- Node 20+ required (React Router 7 dependency)
-- Node 18 works for CLI/git/parser but not UI build
+- Node 18+ supported for the published npm package (CLI)
+- Node 20+ required for UI build (React Router 7 dependency)
+- CI tests across Node 18, 20, 22, 24
 
 ## Branch Comparison Modes
 - `mode=file` (default): blob hash comparison via `getBlobMap()` → `compareBranches()` — skips files with identical content regardless of commit ancestry
@@ -41,7 +42,7 @@
 ## Publishing to npm
 - Published package: **`branchdiff`** (unscoped, lives in `packages/cli/`, `name` in `package.json`). Root is `@branchdiff/root` and `private: true`.
 - Release flow: `pnpm run release:patch|minor|major` → bumps `packages/cli/package.json`, commits, tags `vX.Y.Z`, pushes. `.github/workflows/publish.yml` fires on the tag and publishes with provenance.
-- CI workflow: `.github/workflows/ci.yml` runs typecheck + build on push/PR to `main` across Node 20/22.
+- CI workflow: `.github/workflows/ci.yml` runs build + typecheck on push/PR to `master` across Node 18/20/22/24.
 - Required GitHub secret: `NPM_TOKEN` — a *Granular Access Token* with read+write permission on the `branchdiff` package.
 - `scripts/build.ts` copies root `README.md` + `LICENSE.md` into `packages/cli/` before publish; CHANGELOG lives in the cli package.
 - Before any release, `pnpm pack:dry` previews shipped contents (`dist/`, README, LICENSE, CHANGELOG).
