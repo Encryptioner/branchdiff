@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { createHighlighter, type Highlighter, type BundledLanguage } from 'shiki';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import type { Highlighter, BundledLanguage } from 'shiki';
 
 const LANG_MAP: Record<string, BundledLanguage> = {
   ts: 'typescript',
@@ -128,21 +128,19 @@ function getLang(filePath: string): BundledLanguage | null {
   return LANG_MAP[ext] || null;
 }
 
-const ALL_LANGS: BundledLanguage[] = [
-  ...new Set([
-    ...Object.values(LANG_MAP),
-    ...Object.values(FILENAME_MAP),
-  ]),
-];
-
+// Shiki core (~200KB) is dynamic-imported on first use. Language grammars are
+// loaded on demand via `highlighter.loadLanguage(lang)` — so a Python repo never
+// pays for the TypeScript grammar, etc.
 let highlighterPromise: Promise<Highlighter> | null = null;
 
 function getHighlighter(): Promise<Highlighter> {
   if (!highlighterPromise) {
-    highlighterPromise = createHighlighter({
-      themes: ['github-light', 'github-dark'],
-      langs: ALL_LANGS,
-    });
+    highlighterPromise = import('shiki').then(shiki =>
+      shiki.createHighlighter({
+        themes: ['github-light', 'github-dark'],
+        langs: [], // loaded lazily per file
+      })
+    );
   }
   return highlighterPromise;
 }
@@ -153,9 +151,17 @@ export interface HighlightedTokens {
 
 export function useHighlighter() {
   const [highlighter, setHighlighter] = useState<Highlighter | null>(null);
+  const [loadedLangs, setLoadedLangs] = useState<Set<BundledLanguage>>(() => new Set());
+  const pendingLangsRef = useRef<Set<BundledLanguage>>(new Set());
 
   useEffect(() => {
-    getHighlighter().then(setHighlighter);
+    let cancelled = false;
+    getHighlighter().then(h => {
+      if (!cancelled) setHighlighter(h);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const highlight = useCallback((code: string, filePath: string, theme: 'light' | 'dark'): HighlightedTokens[] | null => {
@@ -165,6 +171,29 @@ export function useHighlighter() {
 
     const lang = getLang(filePath);
     if (!lang) {
+      return null;
+    }
+
+    if (!loadedLangs.has(lang)) {
+      // Lang not yet loaded — kick off async load, return null for now.
+      // Caller will re-render when `loadedLangs` updates.
+      if (!pendingLangsRef.current.has(lang)) {
+        pendingLangsRef.current.add(lang);
+        highlighter
+          .loadLanguage(lang)
+          .then(() => {
+            setLoadedLangs(prev => {
+              if (prev.has(lang)) return prev;
+              const next = new Set(prev);
+              next.add(lang);
+              return next;
+            });
+          })
+          .catch(() => {
+            // Grammar failed — mark as attempted so we don't retry forever
+            pendingLangsRef.current.delete(lang);
+          });
+      }
       return null;
     }
 
@@ -185,7 +214,7 @@ export function useHighlighter() {
     } catch {
       return null;
     }
-  }, [highlighter]);
+  }, [highlighter, loadedLangs]);
 
   return { highlight, ready: highlighter !== null };
 }

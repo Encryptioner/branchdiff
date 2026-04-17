@@ -35,9 +35,14 @@ branchdiff main feat                    # branch comparison (file-level)
 branchdiff main feat --mode git         # commit-level diff
 branchdiff main feat --mode file        # blob hash comparison (default)
 branchdiff origin/stage/prod            # remote refs supported
+branchdiff 1df74cc 3b9a54d              # any two commits (SHAs)
+branchdiff HEAD~3 HEAD                  # relative refs
+branchdiff v1.0.0 v1.1.0                # tags
 branchdiff main feat --dark --unified   # dark mode, unified view
 branchdiff tree                         # file browser
 ```
+
+**Refs accepted**: branch names, commit SHAs, tags, `HEAD`, `HEAD~N`, `origin/<branch>`, anything `git rev-parse --verify` accepts.
 
 ### CLI flags
 

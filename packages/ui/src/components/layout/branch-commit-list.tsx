@@ -19,13 +19,22 @@ export function BranchCommitList({ commits, b1, b2 }: BranchCommitListProps) {
     <ul className="divide-y divide-border overflow-y-auto">
       {commits.map((commit) => {
         const branchLabel = commit.side === 'b1' ? b1 : b2;
+        const fullMessage = commit.body
+          ? `${commit.message}\n\n${commit.body}`
+          : commit.message;
+        const metaTooltip = [
+          commit.shortHash,
+          commit.author && `by ${commit.author}`,
+          commit.relativeDate,
+        ].filter(Boolean).join(' · ');
+        const tooltip = `${fullMessage}\n\n${metaTooltip}`;
         return (
-          <li key={commit.hash} className="px-3 py-2">
+          <li key={commit.hash} className="px-3 py-2" title={tooltip}>
             <div className="flex items-center gap-2">
               <code className="text-xs font-mono text-accent shrink-0">
                 {commit.shortHash}
               </code>
-              <span className="text-sm text-text truncate flex-1">
+              <span className="text-sm text-text truncate flex-1 min-w-0">
                 {commit.message}
               </span>
               {branchLabel && (
@@ -40,9 +49,9 @@ export function BranchCommitList({ commits, b1, b2 }: BranchCommitListProps) {
             </div>
             <div className="flex items-center gap-2 mt-0.5">
               {commit.author && (
-                <span className="text-xs text-text-muted">{commit.author}</span>
+                <span className="text-xs text-text-muted truncate">{commit.author}</span>
               )}
-              <span className="text-xs text-text-muted ml-auto">
+              <span className="text-xs text-text-muted ml-auto shrink-0">
                 {commit.relativeDate}
               </span>
             </div>

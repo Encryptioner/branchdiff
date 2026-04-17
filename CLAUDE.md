@@ -26,6 +26,7 @@
 - `mode=git`: `git diff b1..b2` (two-dot, tip-vs-tip) — surfaces commit-path noise
 - API routes: `/api/compare`, `/api/file-diff`, `/api/branches`, `/api/config`
 - `/api/file-diff` returns `{ patch, files, content1, content2 }` — both full file contents are always included, so the client never needs a second round-trip for full-file view.
+- `b1` / `b2` are **any valid git ref**: branch name, commit SHA (short or full), tag, `HEAD~N`, `origin/<branch>`. Validation is `git rev-parse --verify` in `isValidGitRef` (packages/git/src/repo.ts). No branch-only gating anywhere.
 
 ## UI Conventions
 - Modals use the native `<dialog>` element — see `shortcut-modal.tsx` for the canonical pattern (`showModal()` in effect, `::backdrop` styling, backdrop-click closes).

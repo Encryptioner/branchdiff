@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DiffFile } from '@branchdiff/parser';
 import { FileTree } from '../tree/file-tree';
 import type { FileTreeHandle } from '../tree/file-tree';
@@ -11,6 +11,24 @@ import { ExpandAllIcon } from '../icons/expand-all-icon';
 import { ChevronIcon } from '../icons/chevron-icon';
 import { BranchCommitList } from './branch-commit-list';
 import type { BranchCommit } from '../../lib/api';
+
+const SIDEBAR_MIN_W = 200;
+const SIDEBAR_MAX_W = 720;
+const SIDEBAR_DEFAULT_W = 288; // was w-72
+const SIDEBAR_WIDTH_STORAGE_KEY = 'branchdiff-sidebar-width';
+
+function readStoredWidth(): number {
+  if (typeof window === 'undefined') return SIDEBAR_DEFAULT_W;
+  try {
+    const raw = window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
+    if (!raw) return SIDEBAR_DEFAULT_W;
+    const n = parseInt(raw, 10);
+    if (Number.isFinite(n) && n >= SIDEBAR_MIN_W && n <= SIDEBAR_MAX_W) return n;
+  } catch {
+    // localStorage unavailable
+  }
+  return SIDEBAR_DEFAULT_W;
+}
 
 interface SidebarProps {
   files: DiffFile[];
@@ -42,6 +60,43 @@ export function Sidebar(props: SidebarProps) {
   const [commentedFilesOnly, setCommentedFilesOnly] = useState(false);
   const [allExpanded, setAllExpanded] = useState(true);
   const [showCommits, setShowCommits] = useState(() => !!(branchCommits && branchCommits.length > 0));
+  const [width, setWidth] = useState<number>(readStoredWidth);
+  const widthRef = useRef(width);
+  widthRef.current = width;
+
+  const handleResizeStart = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = widthRef.current;
+    const onMove = (ev: MouseEvent) => {
+      const next = Math.max(SIDEBAR_MIN_W, Math.min(SIDEBAR_MAX_W, startW + ev.clientX - startX));
+      setWidth(next);
+    };
+    const onUp = () => {
+      try {
+        window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(widthRef.current));
+      } catch {
+        // localStorage unavailable
+      }
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
+
+  const handleResizeDoubleClick = useCallback(() => {
+    setWidth(SIDEBAR_DEFAULT_W);
+    try {
+      window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(SIDEBAR_DEFAULT_W));
+    } catch {
+      // localStorage unavailable
+    }
+  }, []);
 
   const commentedFileCount = commentCountsByFile.size;
   const commentedFileCountLabel = commentedFileCount > 99 ? '99+' : String(commentedFileCount);
@@ -71,7 +126,7 @@ export function Sidebar(props: SidebarProps) {
 
   if (collapsed) {
     return (
-      <div className="w-10 min-w-10 border-r border-border bg-bg-secondary flex items-start justify-center pt-3">
+      <div className="w-10 min-w-10 shrink-0 border-r border-border bg-bg-secondary flex items-start justify-center pt-3">
         <button
           className="p-1.5 rounded-md text-text-muted hover:text-text hover:bg-hover cursor-pointer"
           onClick={() => setCollapsed(false)}
@@ -84,7 +139,11 @@ export function Sidebar(props: SidebarProps) {
   }
 
   return (
-    <aside className="w-72 min-w-72 border-r border-border bg-bg-secondary flex flex-col overflow-hidden">
+    <>
+    <aside
+      style={{ width }}
+      className="shrink-0 border-r border-border bg-bg-secondary flex flex-col overflow-hidden"
+    >
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-border">
         <span className="text-xs font-medium text-text-secondary flex items-center gap-2 uppercase tracking-wider">
           Files
@@ -196,5 +255,17 @@ export function Sidebar(props: SidebarProps) {
         onExpandedStateChange={setAllExpanded}
       />
     </aside>
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Resize sidebar (drag, double-click to reset)"
+      className="group relative w-1 shrink-0 cursor-col-resize bg-transparent hover:bg-accent/40 active:bg-accent transition-colors select-none"
+      onMouseDown={handleResizeStart}
+      onDoubleClick={handleResizeDoubleClick}
+      title="Drag to resize · double-click to reset"
+    >
+      <div className="absolute inset-y-0 -left-1 -right-1" />
+    </div>
+    </>
   );
 }
