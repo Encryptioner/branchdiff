@@ -138,7 +138,7 @@ POST /api/agent/resolve     → AI marks thread resolved
 | Method | Path | Query params | Returns |
 |--------|------|--------------|---------|
 | GET | `/api/branches` | — | `{ branches, current }` |
-| GET | `/api/compare` | `b1`, `b2` | `{ files, total, summary }` |
+| GET | `/api/compare` | `b1`, `b2` | `{ files, total, lineStats: { additions, deletions } }` |
 | GET | `/api/file-diff` | `b1`, `b2`, `file` | `{ patch, files, content1, content2 }` |
 | GET | `/api/config` | `b1`, `b2`, `mode` | `{ branch1, branch2, mode, repoName }` |
 

@@ -72,21 +72,26 @@ export function DiffPage() {
   // Per-file diff data (populated lazily as files come into viewport)
   const [fileDiffs, setFileDiffs] = useState<Map<string, DiffFile>>(new Map());
   const inFlightRef = useRef<Set<string>>(new Set());
+  // Incremented on mode/branch change so stale in-flight callbacks are ignored
+  const generationRef = useRef(0);
 
   // Reset cache when branch pair or mode changes
   useEffect(() => {
+    generationRef.current++;
     setFileDiffs(new Map());
     inFlightRef.current = new Set();
   }, [b1, b2, mode]);
 
   const requestFileDiffs = useCallback((paths: string[]) => {
     if (!isBranchComparison || !b1 || !b2) return;
+    const gen = generationRef.current;
     for (const path of paths) {
       if (fileDiffs.has(path) || inFlightRef.current.has(path)) continue;
       inFlightRef.current.add(path);
       queryClient
         .ensureQueryData(fileDiffOptions(b1, b2, path, mode))
         .then(fileDiff => {
+          if (generationRef.current !== gen) return;
           const parsed = fileDiff.files?.files?.[0];
           if (!parsed) return;
           setFileDiffs(prev => {
@@ -147,7 +152,18 @@ export function DiffPage() {
 
   const error = isBranchComparison ? branchDiff.error : regularDiff.error;
   const [activeFile, setActiveFile] = useState<string | null>(null);
-  const [reviewedFiles, setReviewedFiles] = useState<Set<string>>(new Set());
+  const reviewedStorageKey = useMemo(() =>
+    isBranchComparison && b1 && b2 ? `branchdiff-reviewed:${b1}:${b2}` : null,
+  [isBranchComparison, b1, b2]);
+  const [reviewedFiles, setReviewedFiles] = useState<Set<string>>(() => {
+    if (!isBranchComparison || !b1 || !b2) return new Set();
+    try {
+      const raw = window.localStorage.getItem(`branchdiff-reviewed:${b1}:${b2}`);
+      return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
   const [collapsedFiles, setCollapsedFiles] = useState<Set<string>>(new Set());
   const manuallyToggledRef = useRef<Set<string>>(new Set());
   const [pendingSelection, setPendingSelection] = useState<LineSelection | null>(null);
@@ -155,6 +171,13 @@ export function DiffPage() {
   const diffViewRef = useRef<DiffViewHandle>(null);
   const currentFileIdx = useRef(0);
   const initializedDiffRef = useRef<typeof diff>(null);
+
+  useEffect(() => {
+    if (!reviewedStorageKey) return;
+    try {
+      window.localStorage.setItem(reviewedStorageKey, JSON.stringify([...reviewedFiles]));
+    } catch {}
+  }, [reviewedFiles, reviewedStorageKey]);
 
   const reviewsEnabled = !!info?.capabilities?.reviews;
   const sessionId = info?.sessionId ?? null;
@@ -164,14 +187,18 @@ export function DiffPage() {
 
   useEffect(() => {
     const repoName = info?.name || 'branchdiff';
+    const stats = diff?.stats;
+    const statsStr = stats
+      ? ` · ${stats.filesChanged} file${stats.filesChanged !== 1 ? 's' : ''} +${stats.totalAdditions} -${stats.totalDeletions}`
+      : '';
     if (isBranchComparison && b1 && b2) {
-      document.title = `${repoName}: ${b1} \u2194 ${b2} (${mode} mode)`;
+      document.title = `${b1} \u2194 ${b2}${statsStr} \u2014 ${repoName}`;
     } else if (refParam && refParam !== 'work' && refParam !== '.') {
-      document.title = `${repoName}: ${refParam}`;
+      document.title = `${refParam}${statsStr} \u2014 ${repoName}`;
     } else {
       document.title = repoName;
     }
-  }, [info?.name, isBranchComparison, b1, b2, mode, refParam]);
+  }, [info?.name, isBranchComparison, b1, b2, mode, refParam, diff?.stats]);
 
   useEffect(() => {
     if (!info?.github) {

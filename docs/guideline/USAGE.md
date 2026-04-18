@@ -6,7 +6,7 @@ Think of it as a beefed-up `git diff`:
 - **file-level comparison** (actual content, ignores commit-path noise)
 - side-by-side and unified views with syntax highlighting
 - inline comments + GitHub PR push/pull
-- full-file view popup (Bitbucket-style) for any changed file
+- **Full view mode** — VS Code-style inline full file view for all changed files; also available per-file as a popup
 
 For contributor setup (cloning, linking a local build, releasing) see [DEVELOPMENT.md](./DEVELOPMENT.md).
 
@@ -128,7 +128,7 @@ Example: if `main` and `feature` both added the same comment via different commi
 
 ### Delta mode (Δ) — browser UI only
 
-When comparing two branches, click the **Δ** toggle in the toolbar to see what file mode and git mode each report differently, side by side:
+When comparing two branches, click the **Delta** button (Δ icon) in the toolbar to see what file mode and git mode each report differently, side by side. A `?` badge appears in delta mode — hover it for a quick explanation.
 
 | Category | Color | Meaning |
 |---|---|---|

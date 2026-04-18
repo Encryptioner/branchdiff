@@ -105,12 +105,12 @@ branchdiff agent resolve abc123de --summary "Fixed"      # mark thread resolved
 - **File-level diff** — compares blob hashes, skips identical content regardless of commit history
 - **Git-level diff** — standard `git diff` when you want commit ancestry semantics
 - **Delta mode (Δ)** — side-by-side comparison of what file mode and git mode each report; highlights files/lines that appear in one mode but not the other
-- **Full-file compare popup** — Bitbucket-style side-by-side full file view per changed file
+- **Full view mode** — VS Code-style inline side-by-side full file view for all changed files at once (toggle "Full" in the toolbar); also available as a per-file popup
 - **Browser UI** — React SPA with split/unified views, syntax highlighting (Shiki, ~150 languages, lazy-loaded)
 - **AI-ready review workflow** — any assistant (Claude Code, Cursor, Codex, Copilot, Gemini) can review, comment, and apply fixes via the `branchdiff agent …` CLI and `/api/threads/export`. No plugin required. [See AI guide →](./docs/guideline/AI-REVIEW.md)
 - **Review comments** — with severity tags (`[must-fix]`, `[suggestion]`, `[nit]`, `[question]`)
 - **GitHub PR integration** — push/pull review comments to a PR
-- **Keyboard shortcuts** — `j`/`k` for file nav, `h`/`l` for hunk nav
+- **Keyboard shortcuts** — `j`/`k` for file nav, `n`/`p` for hunk nav, `shift+x` collapse/expand all
 - **File tree sidebar** — with status badges (A/M/D), search, resizable width
 - **Multiple instances** — different repos on different ports, registry-tracked
 - **Runs 100% locally** — no cloud, no telemetry
@@ -151,7 +151,7 @@ Git mode:   modified    (commits differ, even though final state matches)
 
 ### Delta mode (Δ) — browser UI only
 
-Toggle the **Δ** button in the toolbar when comparing two branches to see what each mode reports differently:
+Toggle the **Delta** button (Δ icon) in the toolbar when comparing two branches to see what each mode reports differently:
 
 - **Git-only** (amber) — files/lines that appear in git mode but not file mode; usually commit-path noise
 - **File-only** (blue) — files/lines in file mode but not git mode; rare, worth investigating

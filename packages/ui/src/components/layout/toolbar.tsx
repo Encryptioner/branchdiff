@@ -206,7 +206,21 @@ export function Toolbar(props: ToolbarProps) {
       </div>
       <div className="flex items-center gap-2 ml-auto shrink-0">
         {diffMode && onDiffModeChange && (
-          <SegmentedToggle options={diffModeOptions} value={diffMode} onChange={onDiffModeChange} />
+          <div className="flex items-center gap-1">
+            <SegmentedToggle options={diffModeOptions} value={diffMode} onChange={onDiffModeChange} />
+            <div className="relative group">
+              <span
+                className={`inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-bg-tertiary text-text-muted text-[9px] font-bold leading-none select-none transition-opacity ${diffMode === 'delta' ? 'opacity-100 cursor-help' : 'opacity-0 pointer-events-none'}`}
+              >
+                ?
+              </span>
+              {diffMode === 'delta' && (
+                <div className="absolute right-0 top-full mt-2 w-60 p-2.5 bg-bg-secondary border border-border rounded-lg shadow-lg text-[11px] text-text-secondary leading-relaxed z-50 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  Delta compares git-level and file-level diffs. Files here changed in one mode but not the other — useful for detecting silent merge conflict resolutions that git diff misses.
+                </div>
+              )}
+            </div>
+          </div>
         )}
         <div className={`flex items-center gap-2 ${diffMode === 'delta' ? 'invisible' : ''}`}>
           <label className="flex items-center gap-1.5 text-[11px] text-text-muted cursor-pointer select-none hover:text-text transition-colors">
@@ -217,7 +231,7 @@ export function Toolbar(props: ToolbarProps) {
               className="accent-accent cursor-pointer w-3 h-3"
               tabIndex={diffMode === 'delta' ? -1 : undefined}
             />
-            Show full diff
+            Show large diff
           </label>
           <SegmentedToggle options={viewModeOptions} value={viewMode} onChange={onViewModeChange} />
         </div>

@@ -30,7 +30,7 @@ import { ExpandRow } from './expand-row';
 import { FullFileCompare } from './full-file-compare';
 import { ExpandAllIcon } from '../icons/expand-all-icon';
 
-export const LARGE_DIFF_LINE_THRESHOLD = 200;
+export const LARGE_DIFF_LINE_THRESHOLD = 500;
 
 
 function getTotalLineCount(file: DiffFile): number {

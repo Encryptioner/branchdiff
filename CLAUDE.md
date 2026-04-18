@@ -28,7 +28,7 @@
 ## Branch Comparison Modes
 - `mode=file` (default): blob hash comparison via `getBlobMap()` → `compareBranches()` — skips files with identical content regardless of commit ancestry
 - `mode=git`: `git diff b1..b2` (two-dot, tip-vs-tip) — surfaces commit-path noise
-- `mode=delta`: **UI-only** — never sent to the server. Maps to `effectiveApiMode='file'` for the API call. The `DeltaView` component fetches both git and file comparisons in parallel and categorises files as git-only / file-only / shared.
+- `mode=delta`: **UI-only** — never sent to the server. Maps to `effectiveApiMode='file'` for the API call. The `DeltaView` component fetches both git and file comparisons in parallel and categorises files as git-only / file-only / shared. The view-mode toggle and "Show large diff" checkbox are hidden (`visibility:hidden`) in delta mode — the `showFullViewMode` prop is always passed as `isBranchComparison` (not gated on mode) so the invisible container has a stable width and doesn't cause layout shift.
 - API routes: `/api/compare`, `/api/file-diff`, `/api/branches`, `/api/config`
 - `/api/compare` response includes `lineStats: { additions, deletions }` computed via `git diff --numstat b1 b2` server-side — toolbar stats are stable from first render, not accumulated as files lazy-load.
 - `/api/file-diff` returns `{ patch, files, content1, content2 }` — both full file contents are always included, so the client never needs a second round-trip for full-file view.
@@ -37,6 +37,7 @@
 ## UI Conventions
 - Modals use the native `<dialog>` element — see `shortcut-modal.tsx` for the canonical pattern (`showModal()` in effect, `::backdrop` styling, backdrop-click closes).
 - File list virtualization lives in `diff-view.tsx` via `@tanstack/react-virtual` — at the file level only. Hunks/lines inside a file are not virtualized; large files are gated behind the `LARGE_DIFF_LINE_THRESHOLD = 200` placeholder in `file-block.tsx`.
+- `ViewMode` has three values: `'unified'` | `'split'` | `'full'`. `'full'` renders `FullFileCompare` inline (with `inline` prop) showing complete file content side-by-side; it only appears in branch comparison mode (not delta). The Full toggle option is always included in the SegmentedToggle for branch comparisons so the toolbar width stays stable.
 - TanStack Query cache keys live in `packages/ui/src/queries/*` — reuse these options objects rather than calling `fetch` directly.
 
 ## Performance Gotchas
