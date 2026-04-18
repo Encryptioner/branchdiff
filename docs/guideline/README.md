@@ -16,4 +16,4 @@ See also:
 - [../OVERVIEW.md](../OVERVIEW.md) — architecture walkthrough
 - [../PLAN.md](../PLAN.md) — build plan
 - [GitHub issues](https://github.com/Encryptioner/branchdiff/issues) — bugs, feature requests
-- [npm: branchdiff](https://www.npmjs.com/package/branchdiff) — published package
+- [npm: @encryptioner/branchdiff](https://www.npmjs.com/package/@encryptioner/branchdiff) — published package

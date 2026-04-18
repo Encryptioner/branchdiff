@@ -2,8 +2,8 @@
 
 **Visual file-level git branch diff in your browser.**
 
-[![npm](https://img.shields.io/npm/v/branchdiff.svg)](https://www.npmjs.com/package/branchdiff)
-[![license](https://img.shields.io/npm/l/branchdiff.svg)](./LICENSE.md)
+[![npm](https://img.shields.io/npm/v/@encryptioner/branchdiff.svg)](https://www.npmjs.com/package/@encryptioner/branchdiff)
+[![license](https://img.shields.io/npm/l/@encryptioner/branchdiff.svg)](./LICENSE.md)
 
 ## Why branchdiff?
 
@@ -22,12 +22,12 @@ branchdiff main feat →  no diff     (correct: same content)
 ## Install
 
 ```bash
-npm install -g branchdiff
-# or: pnpm add -g branchdiff
-# or: yarn global add branchdiff
+npm install -g @encryptioner/branchdiff
+# or: pnpm add -g @encryptioner/branchdiff
+# or: yarn global add @encryptioner/branchdiff
 ```
 
-Also usable with `npx branchdiff main..feature` (no install).
+Also usable with `npx @encryptioner/branchdiff main..feature` (no install).
 
 **Requires Node.js 18+** and `git` on your `PATH`.
 

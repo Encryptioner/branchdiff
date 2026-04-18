@@ -25,7 +25,7 @@ For contributor setup (cloning, linking a local build, releasing) see [DEVELOPME
 ### Try once without installing
 
 ```bash
-npx branchdiff main..feature
+npx @encryptioner/branchdiff main..feature
 ```
 
 npm downloads and runs it in a temp dir.
@@ -34,13 +34,13 @@ npm downloads and runs it in a temp dir.
 
 ```bash
 # npm
-npm install -g branchdiff
+npm install -g @encryptioner/branchdiff
 
 # pnpm
-pnpm add -g branchdiff
+pnpm add -g @encryptioner/branchdiff
 
 # yarn
-yarn global add branchdiff
+yarn global add @encryptioner/branchdiff
 ```
 
 Then the `branchdiff` binary is on your `PATH`:
@@ -52,7 +52,7 @@ branchdiff --version
 ### Per-project dev dependency
 
 ```bash
-pnpm add -D branchdiff
+pnpm add -D @encryptioner/branchdiff
 ```
 
 Add a script to `package.json`:
