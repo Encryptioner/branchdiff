@@ -14,6 +14,7 @@ import { DiffView, type DiffViewHandle } from './diff-view';
 import { Sidebar } from '../layout/sidebar';
 import { ShortcutModal } from '../layout/shortcut-modal';
 import { StaleDiffBanner } from '../layout/stale-diff-banner';
+import { MergeConflictBanner } from '../layout/merge-conflict-banner';
 import { CheckCircleIcon } from '../icons/check-circle-icon';
 import { PageLoader } from '../layout/skeleton';
 import { useDiffStaleness } from '../../hooks/use-diff-staleness';
@@ -83,13 +84,19 @@ export function DiffPage() {
   }, [b1, b2, mode]);
 
   const requestFileDiffs = useCallback((paths: string[]) => {
-    if (!isBranchComparison || !b1 || !b2) return;
+    if (!isBranchComparison || !b1 || !b2 || !branchDiff.data) return;
     const gen = generationRef.current;
+    const oldPathByNew = new Map(
+      branchDiff.data.files
+        .filter(f => f.oldPath)
+        .map(f => [f.path, f.oldPath!]),
+    );
     for (const path of paths) {
       if (fileDiffs.has(path) || inFlightRef.current.has(path)) continue;
       inFlightRef.current.add(path);
+      const oldFile = oldPathByNew.get(path);
       queryClient
-        .ensureQueryData(fileDiffOptions(b1, b2, path, mode))
+        .ensureQueryData(fileDiffOptions(b1, b2, path, mode, oldFile))
         .then(fileDiff => {
           if (generationRef.current !== gen) return;
           const parsed = fileDiff.files?.files?.[0];
@@ -106,7 +113,7 @@ export function DiffPage() {
           inFlightRef.current.delete(path);
         });
     }
-  }, [isBranchComparison, b1, b2, mode, queryClient, fileDiffs]);
+  }, [isBranchComparison, b1, b2, mode, queryClient, fileDiffs, branchDiff.data]);
 
   // Warm prefetch: first 10 files so the initial viewport loads instantly
   useEffect(() => {
@@ -126,9 +133,9 @@ export function DiffPage() {
         const normalizedFiles = branchData.files.map(f => {
           const fileDiff = fileDiffs.get(f.path);
           return {
-            oldPath: f.status === 'added' ? '/dev/null' : f.path,
+            oldPath: f.status === 'added' ? '/dev/null' : (f.oldPath ?? f.path),
             newPath: f.status === 'deleted' ? '/dev/null' : f.path,
-            status: f.status as 'added' | 'modified' | 'deleted',
+            status: f.status,
             hunks: fileDiff?.hunks || [],
             additions: fileDiff?.additions || 0,
             deletions: fileDiff?.deletions || 0,
@@ -507,7 +514,11 @@ export function DiffPage() {
         showFullViewMode={isBranchComparison}
       />
       {isStale && <StaleDiffBanner onRefresh={handleRefreshDiff} />}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden" style={{ flexDirection: 'column' }}>
+        {isBranchComparison && b1 && b2 && mode !== 'delta' && (
+          <MergeConflictBanner b1={b1} b2={b2} />
+        )}
+        <div className="flex flex-1 overflow-hidden">
         {mode !== 'delta' && (
           <Sidebar
             files={diff?.files || []}
@@ -551,6 +562,7 @@ export function DiffPage() {
             onRequestFileDiffs={isBranchComparison ? requestFileDiffs : undefined}
           />
         ) : null}
+        </div>
       </div>
       {showHelp && <ShortcutModal onClose={() => setShowHelp(false)} />}
     </div>

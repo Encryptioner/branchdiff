@@ -3,6 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { fileDiffOptions } from '../../queries/branch-comparison';
 import type { BranchDiffFile } from '../../lib/api';
 import { cn } from '../../lib/cn';
+import { useCopy } from '../../hooks/use-copy';
+import { CopyIcon } from '../icons/copy-icon';
+import { CheckIcon } from '../icons/check-icon';
 
 export type DeltaCategory = 'git-only' | 'file-only' | 'shared';
 
@@ -57,9 +60,12 @@ function linePrefix(type: 'add' | 'delete') {
 export function DeltaFileRow({ file, category, b1, b2 }: DeltaFileRowProps) {
   const [expanded, setExpanded] = useState(false);
   const diffMode = category === 'file-only' ? 'file' : 'git';
+  const { copied: pathCopied, copy: copyPath } = useCopy();
+  const { copied: oldPathCopied, copy: copyOldPath } = useCopy();
+  const isRename = !!(file.oldPath && file.oldPath !== file.path);
 
   const { data: diffData } = useQuery({
-    ...fileDiffOptions(b1, b2, file.path, diffMode),
+    ...fileDiffOptions(b1, b2, file.path, diffMode, file.oldPath),
     enabled: expanded && category !== 'shared',
   });
 
@@ -88,27 +94,73 @@ export function DeltaFileRow({ file, category, b1, b2 }: DeltaFileRowProps) {
         onClick={isExpandable ? toggleExpand : undefined}
         onKeyDown={isExpandable ? (e) => { if (e.key === 'Enter' || e.key === ' ') toggleExpand(); } : undefined}
         className={cn(
-          'flex items-center gap-2 px-3 py-2',
+          'flex gap-2 px-3 py-2',
+          isRename ? 'items-start' : 'items-center',
           categoryBgClass(category),
           isExpandable && 'cursor-pointer hover:brightness-95 dark:hover:brightness-110 select-none',
         )}
       >
         {isExpandable && (
           <svg
-            className={cn('w-3 h-3 text-text-muted shrink-0 transition-transform', expanded && 'rotate-90')}
+            className={cn('w-3 h-3 text-text-muted shrink-0 transition-transform', isRename && 'mt-0.5', expanded && 'rotate-90')}
             viewBox="0 0 16 16"
             fill="currentColor"
           >
             <path d="M6.22 3.22a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 01-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 010-1.06z" />
           </svg>
         )}
-        <span className="font-mono text-xs text-text truncate flex-1 min-w-0">{file.path}</span>
-        <span className={cn('text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0', badge.cls)}>
-          {badge.label}
-        </span>
-        {expanded && parsedFile && (
-          <StatPill additions={additions} deletions={deletions} />
+        {isRename ? (
+          <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="font-mono text-xs text-text-muted line-through truncate flex-1 min-w-0" title={file.oldPath}>
+                {file.oldPath}
+              </span>
+              <button
+                onClick={(e) => { e.stopPropagation(); copyOldPath(file.oldPath!); }}
+                className="shrink-0 text-text-muted hover:text-text transition-colors cursor-pointer"
+                title="Copy old path"
+              >
+                {oldPathCopied ? <CheckIcon className="w-3 h-3 text-added" /> : <CopyIcon className="w-3 h-3" />}
+              </button>
+            </div>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-text-muted text-xs shrink-0">→</span>
+              <span className="font-mono text-xs text-text truncate flex-1 min-w-0" title={file.path}>
+                {file.path}
+              </span>
+              <button
+                onClick={(e) => { e.stopPropagation(); copyPath(file.path); }}
+                className="shrink-0 text-text-muted hover:text-text transition-colors cursor-pointer"
+                title="Copy new path"
+              >
+                {pathCopied ? <CheckIcon className="w-3 h-3 text-added" /> : <CopyIcon className="w-3 h-3" />}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <span className="font-mono text-xs text-text truncate flex-1 min-w-0">{file.path}</span>
+            <button
+              onClick={(e) => { e.stopPropagation(); copyPath(file.path); }}
+              className="shrink-0 text-text-muted hover:text-text transition-colors cursor-pointer"
+              title="Copy file path"
+            >
+              {pathCopied ? (
+                <CheckIcon className="w-3 h-3 text-added" />
+              ) : (
+                <CopyIcon className="w-3 h-3" />
+              )}
+            </button>
+          </>
         )}
+        <div className={cn('flex items-center gap-2 shrink-0', isRename && 'mt-0.5')}>
+          <span className={cn('text-[10px] font-medium px-1.5 py-0.5 rounded', badge.cls)}>
+            {badge.label}
+          </span>
+          {expanded && parsedFile && (
+            <StatPill additions={additions} deletions={deletions} />
+          )}
+        </div>
       </div>
 
       {expanded && category !== 'shared' && (

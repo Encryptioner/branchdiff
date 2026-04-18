@@ -171,16 +171,16 @@ export function Toolbar(props: ToolbarProps) {
   ], []);
 
   return (
-    <div className="flex items-center gap-3 px-4 py-1.5 bg-bg-secondary border-b border-border font-sans text-xs">
-      <div className="flex items-center gap-2.5 min-w-0 shrink">
-        {repoName && <span className="font-semibold text-text text-sm truncate">{repoName}</span>}
+    <div className="flex flex-col bg-bg-secondary border-b border-border font-sans text-xs">
+      <div className="flex items-center flex-wrap gap-x-2.5 gap-y-1 px-4 py-1.5 min-w-0">
+        {repoName && <span className="font-semibold text-text text-sm shrink-0 max-w-[200px] truncate">{repoName}</span>}
         {branch && (
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-diff-hunk-bg text-diff-hunk-text rounded font-mono text-[11px] shrink-0">
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-diff-hunk-bg text-diff-hunk-text rounded font-mono text-[11px] break-all">
             <GitBranchIcon className="w-3 h-3" />
             {branch}
           </span>
         )}
-        {description && <span className="text-text-muted truncate hidden lg:inline">{description}</span>}
+        {description && <span className="text-text-muted truncate hidden sm:inline min-w-0">{description}</span>}
         {statsLoading && !diff && (
           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-bg-tertiary rounded-md text-text-muted shrink-0">
             <span className="w-3 h-3 border-2 border-text-muted/30 border-t-text-muted rounded-full animate-spin" />
@@ -204,7 +204,7 @@ export function Toolbar(props: ToolbarProps) {
           </button>
         )}
       </div>
-      <div className="flex items-center gap-2 ml-auto shrink-0">
+      <div className="flex items-center gap-2 px-4 py-1 justify-end">
         {diffMode && onDiffModeChange && (
           <div className="flex items-center gap-1">
             <SegmentedToggle options={diffModeOptions} value={diffMode} onChange={onDiffModeChange} />
@@ -231,7 +231,7 @@ export function Toolbar(props: ToolbarProps) {
               className="accent-accent cursor-pointer w-3 h-3"
               tabIndex={diffMode === 'delta' ? -1 : undefined}
             />
-            Show large diff
+            Expand large diff
           </label>
           <SegmentedToggle options={viewModeOptions} value={viewMode} onChange={onViewModeChange} />
         </div>

@@ -313,7 +313,8 @@ export async function fetchTreeFileContent(filePath: string): Promise<string[]> 
 
 export interface BranchDiffFile {
   path: string;
-  status: 'added' | 'modified' | 'deleted';
+  oldPath?: string;
+  status: 'added' | 'modified' | 'deleted' | 'renamed' | 'copied';
 }
 
 export interface BranchComparison {
@@ -357,8 +358,8 @@ export function fetchBranchComparison(b1: string, b2: string, mode?: string): Pr
   return apiFetch(buildUrl('/api/compare', { b1, b2, mode }));
 }
 
-export function fetchFileDiff(b1: string, b2: string, file: string, mode?: string): Promise<FileDiff> {
-  return apiFetch(buildUrl('/api/file-diff', { b1, b2, file, mode }));
+export function fetchFileDiff(b1: string, b2: string, file: string, mode?: string, oldFile?: string): Promise<FileDiff> {
+  return apiFetch(buildUrl('/api/file-diff', { b1, b2, file, mode, oldFile }));
 }
 
 export function fetchBranchConfig(b1?: string, b2?: string, mode?: string): Promise<BranchConfig> {
@@ -376,4 +377,19 @@ export interface BranchCommitsResponse {
 
 export function fetchBranchCommits(b1: string, b2: string): Promise<BranchCommitsResponse> {
   return apiFetch(buildUrl('/api/branch-commits', { b1, b2 }));
+}
+
+export interface MergeConflictFile {
+  path: string;
+  type: string;
+}
+
+export interface MergeConflictsResponse {
+  conflicts: MergeConflictFile[];
+  total: number;
+  method: 'merge-tree' | 'intersection';
+}
+
+export function fetchMergeConflicts(b1: string, b2: string): Promise<MergeConflictsResponse> {
+  return apiFetch(buildUrl('/api/merge-conflicts', { b1, b2 }));
 }

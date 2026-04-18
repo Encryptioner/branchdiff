@@ -18,6 +18,7 @@ import { useCopy } from '../../hooks/use-copy';
 import { CopyIcon } from '../icons/copy-icon';
 import { CheckIcon } from '../icons/check-icon';
 import { CommentIcon } from '../icons/comment-icon';
+import { CommentForm } from '../comments/comment-form';
 import { DiffStats } from './diff-stats';
 import { Badge } from '../ui/badge';
 import { IconButton } from '../ui/icon-button';
@@ -79,6 +80,7 @@ export function FileBlock(props: FileBlockProps) {
     highlighted, onHighlightEnd, showFullDiff, branchCompare, theme,
   } = props;
   const [fullFileOpen, setFullFileOpen] = useState(false);
+  const [showFileCommentForm, setShowFileCommentForm] = useState(false);
 
   const totalLines = getTotalLineCount(file);
   const isLargeDiff = totalLines >= LARGE_DIFF_LINE_THRESHOLD;
@@ -96,6 +98,7 @@ export function FileBlock(props: FileBlockProps) {
   const fileLineCount = file.oldFileLineCount ?? null;
 
   const { copied: pathCopied, copy: copyPath } = useCopy();
+  const { copied: oldPathCopied, copy: copyOldPath } = useCopy();
 
   const [confirmRevertChange, setConfirmRevertChange] = useState<{ hunk: DiffHunk; startIndex: number; endIndex: number } | null>(null);
 
@@ -389,40 +392,72 @@ export function FileBlock(props: FileBlockProps) {
       onAnimationEnd={onHighlightEnd}
     >
       <div
-        className={`group flex items-center gap-2 px-3 py-1.5 border-border text-xs sticky top-0 z-10 shadow-sticky ${highlighted ? 'animate-flash-highlight' : 'bg-bg-secondary'}`}
+        className={`group flex ${showRename ? 'items-start' : 'items-center'} gap-2 px-3 py-1.5 border-border text-xs sticky top-0 z-10 shadow-sticky ${highlighted ? 'animate-flash-highlight' : 'bg-bg-secondary'}`}
       >
         <IconButton
-          className="text-[10px] w-4 h-4 shrink-0"
+          className={`text-[10px] w-4 h-4 shrink-0 ${showRename ? 'mt-0.5' : ''}`}
           onClick={() => onToggleCollapse(filePath)}
           title={collapsed ? 'Expand' : 'Collapse'}
         >
           {collapsed ? '\u25b6' : '\u25bc'}
         </IconButton>
-        <button
-          className="font-mono text-xs truncate text-left cursor-pointer hover:text-accent transition-colors"
-          onClick={() => onToggleCollapse(filePath)}
-        >
-          {showRename ? (
-            <>
-              <span className="line-through text-text-muted">{file.oldPath}</span>
-              <span className="text-text-muted"> → </span>
-              <span>{file.newPath}</span>
-            </>
-          ) : (
-            filePath
-          )}
-        </button>
-        <button
-          onClick={() => copyPath(filePath)}
-          className="shrink-0 text-text-muted hover:text-text transition-colors cursor-pointer"
-          title="Copy file path"
-        >
-          {pathCopied ? (
-            <CheckIcon className="w-3 h-3 text-added" />
-          ) : (
-            <CopyIcon className="w-3 h-3" />
-          )}
-        </button>
+        {showRename ? (
+          <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <button
+                className="font-mono text-xs truncate text-left cursor-pointer hover:text-accent transition-colors line-through text-text-muted"
+                onClick={() => onToggleCollapse(filePath)}
+                title={file.oldPath}
+              >
+                {file.oldPath}
+              </button>
+              <button
+                onClick={() => copyOldPath(file.oldPath!)}
+                className="shrink-0 text-text-muted hover:text-text transition-colors cursor-pointer"
+                title="Copy old path"
+              >
+                {oldPathCopied ? <CheckIcon className="w-3 h-3 text-added" /> : <CopyIcon className="w-3 h-3" />}
+              </button>
+            </div>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-text-muted shrink-0">→</span>
+              <button
+                className="font-mono text-xs truncate text-left cursor-pointer hover:text-accent transition-colors"
+                onClick={() => onToggleCollapse(filePath)}
+                title={file.newPath}
+              >
+                {file.newPath}
+              </button>
+              <button
+                onClick={() => copyPath(file.newPath)}
+                className="shrink-0 text-text-muted hover:text-text transition-colors cursor-pointer"
+                title="Copy new path"
+              >
+                {pathCopied ? <CheckIcon className="w-3 h-3 text-added" /> : <CopyIcon className="w-3 h-3" />}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <button
+              className="font-mono text-xs truncate text-left cursor-pointer hover:text-accent transition-colors"
+              onClick={() => onToggleCollapse(filePath)}
+            >
+              {filePath}
+            </button>
+            <button
+              onClick={() => copyPath(filePath)}
+              className="shrink-0 text-text-muted hover:text-text transition-colors cursor-pointer"
+              title="Copy file path"
+            >
+              {pathCopied ? (
+                <CheckIcon className="w-3 h-3 text-added" />
+              ) : (
+                <CopyIcon className="w-3 h-3" />
+              )}
+            </button>
+          </>
+        )}
         {file.status !== 'modified' && <StatusBadge status={file.status} />}
         {file.isBinary && <Badge className="bg-bg-tertiary text-text-muted">Binary</Badge>}
         <div className="ml-auto flex items-center gap-2.5 shrink-0">
@@ -436,6 +471,16 @@ export function FileBlock(props: FileBlockProps) {
                 </ThreadBadge>
               )}
             </span>
+          )}
+          {commentsEnabled && (
+            <button
+              onClick={() => setShowFileCommentForm(v => !v)}
+              className="flex items-center gap-1 text-[11px] text-text-muted hover:text-accent cursor-pointer transition-colors"
+              title="Add file comment"
+            >
+              <CommentIcon className="w-3 h-3" />
+              Comment
+            </button>
           )}
           <div className="flex items-center gap-1.5">
             <DiffStats additions={file.additions} deletions={file.deletions} />
@@ -472,6 +517,19 @@ export function FileBlock(props: FileBlockProps) {
           </label>
         </div>
       </div>
+      {showFileCommentForm && (
+        <div className="border-t border-border px-3 py-3 bg-bg-secondary">
+          <CommentForm
+            onSubmit={(body) => {
+              commentActions.addThread(filePath, 'new', 0, 0, body, DEFAULT_AUTHOR);
+              setShowFileCommentForm(false);
+            }}
+            onCancel={() => setShowFileCommentForm(false)}
+            placeholder="Leave a comment on this file…"
+            submitLabel="Comment"
+          />
+        </div>
+      )}
       {!collapsed && viewMode === 'full' && branchCompare && !file.isBinary && (
         <FullFileCompare
           inline

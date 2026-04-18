@@ -1,5 +1,5 @@
 import { queryOptions } from '@tanstack/react-query';
-import { fetchBranchComparison, fetchBranches, fetchBranchConfig, fetchFileDiff, fetchBranchCommits } from '../lib/api';
+import { fetchBranchComparison, fetchBranches, fetchBranchConfig, fetchFileDiff, fetchBranchCommits, fetchMergeConflicts } from '../lib/api';
 
 export function branchesOptions() {
   return queryOptions({
@@ -17,10 +17,10 @@ export function branchComparisonOptions(b1: string, b2: string, mode?: string) {
   });
 }
 
-export function fileDiffOptions(b1: string, b2: string, file: string, mode?: string) {
+export function fileDiffOptions(b1: string, b2: string, file: string, mode?: string, oldFile?: string) {
   return queryOptions({
-    queryKey: ['file-diff', b1, b2, file, mode ?? null],
-    queryFn: () => fetchFileDiff(b1, b2, file, mode),
+    queryKey: ['file-diff', b1, b2, file, mode ?? null, oldFile ?? null],
+    queryFn: () => fetchFileDiff(b1, b2, file, mode, oldFile),
     staleTime: 5 * 60_000,
     gcTime: 30 * 60_000,
   });
@@ -39,6 +39,15 @@ export function branchCommitsOptions(b1: string, b2: string) {
     queryKey: ['branch-commits', b1, b2],
     queryFn: () => fetchBranchCommits(b1, b2),
     staleTime: 5 * 60_000,
+    gcTime: 30 * 60_000,
+  });
+}
+
+export function mergeConflictsOptions(b1: string, b2: string) {
+  return queryOptions({
+    queryKey: ['merge-conflicts', b1, b2],
+    queryFn: () => fetchMergeConflicts(b1, b2),
+    staleTime: 10 * 60_000,
     gcTime: 30 * 60_000,
   });
 }

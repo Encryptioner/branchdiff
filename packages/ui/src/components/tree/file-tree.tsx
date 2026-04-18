@@ -42,12 +42,17 @@ export const FileTree = forwardRef<FileTreeHandle, FileTreeProps>(function FileT
     return sortTree(collapseSingleChildDirs(buildFileTree(files)));
   }, [files]);
 
-  const prevTreeRef = useRef(tree);
-  const [expandedDirs, setExpandedDirs] = useState<Set<string>>(() => new Set(collectAllDirPaths(tree)));
+  const allDirPaths = useMemo(() => collectAllDirPaths(tree), [tree]);
 
-  if (prevTreeRef.current !== tree) {
-    prevTreeRef.current = tree;
-    setExpandedDirs(new Set(collectAllDirPaths(tree)));
+  // Stable key derived from dir paths only — ignores changes to file content
+  // (hunks, stats) so lazy-loading diffs doesn't reset user's folder expand state.
+  const dirPathsKey = allDirPaths.join('|');
+
+  const [expandedDirs, setExpandedDirs] = useState<Set<string>>(() => new Set(allDirPaths));
+  const prevDirPathsKeyRef = useRef(dirPathsKey);
+  if (prevDirPathsKeyRef.current !== dirPathsKey) {
+    prevDirPathsKeyRef.current = dirPathsKey;
+    setExpandedDirs(new Set(allDirPaths));
   }
 
   const commentedPaths = useMemo(
@@ -75,8 +80,6 @@ export const FileTree = forwardRef<FileTreeHandle, FileTreeProps>(function FileT
     }
     return expandedDirs;
   }, [search, commentedFilesOnly, displayTree, expandedDirs]);
-
-  const allDirPaths = useMemo(() => collectAllDirPaths(tree), [tree]);
 
   useImperativeHandle(ref, () => ({
     expandAll: () => setExpandedDirs(new Set(allDirPaths)),

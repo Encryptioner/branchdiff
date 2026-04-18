@@ -28,7 +28,7 @@
 ## Branch Comparison Modes
 - `mode=file` (default): blob hash comparison via `getBlobMap()` → `compareBranches()` — skips files with identical content regardless of commit ancestry
 - `mode=git`: `git diff b1..b2` (two-dot, tip-vs-tip) — surfaces commit-path noise
-- `mode=delta`: **UI-only** — never sent to the server. Maps to `effectiveApiMode='file'` for the API call. The `DeltaView` component fetches both git and file comparisons in parallel and categorises files as git-only / file-only / shared. The view-mode toggle and "Show large diff" checkbox are hidden (`visibility:hidden`) in delta mode — the `showFullViewMode` prop is always passed as `isBranchComparison` (not gated on mode) so the invisible container has a stable width and doesn't cause layout shift.
+- `mode=delta`: **UI-only** — never sent to the server. Maps to `effectiveApiMode='file'` for the API call. The `DeltaView` component fetches both git and file comparisons in parallel and categorises files as git-only / file-only / shared. The view-mode toggle and "Expand large diff" checkbox are hidden (`visibility:hidden`) in delta mode — the `showFullViewMode` prop is always passed as `isBranchComparison` (not gated on mode) so the invisible container has a stable width and doesn't cause layout shift.
 - API routes: `/api/compare`, `/api/file-diff`, `/api/branches`, `/api/config`
 - `/api/compare` response includes `lineStats: { additions, deletions }` computed via `git diff --numstat b1 b2` server-side — toolbar stats are stable from first render, not accumulated as files lazy-load.
 - `/api/file-diff` returns `{ patch, files, content1, content2 }` — both full file contents are always included, so the client never needs a second round-trip for full-file view.

@@ -626,23 +626,21 @@ export function startServer(options: ServerOptions): Promise<ServerResult> {
             return;
           }
 
-          let files: Array<{ path: string; status: 'added' | 'modified' | 'deleted' }>;
+          type CompareFile = { path: string; oldPath?: string; status: 'added' | 'modified' | 'deleted' | 'renamed' | 'copied' };
+          let files: CompareFile[];
           if (mode === 'git') {
             // Git mode: use standard git diff (async — doesn't block event loop)
             const output = await gitAsync(['diff', `${b1}..${b2}`, '--name-status']);
             files = output
               .split('\n')
               .filter(Boolean)
-              .flatMap(line => {
+              .flatMap((line): CompareFile[] => {
                 const parts = line.split('\t');
                 const status = parts[0];
-                // Rename (R) or Copy (C): parts[1]=old path, parts[2]=new path
-                // Report as delete+add to stay consistent with file mode's path-based comparison.
+                // Rename (R) or Copy (C): surface as a single renamed/copied entry with oldPath
                 if (status.startsWith('R') || status.startsWith('C')) {
-                  return [
-                    { path: parts[1], status: 'deleted' as const },
-                    { path: parts[2], status: 'added' as const },
-                  ];
+                  const s = status.startsWith('R') ? 'renamed' as const : 'copied' as const;
+                  return [{ path: parts[2], oldPath: parts[1], status: s }];
                 }
                 const path = parts.slice(1).join('\t');
                 let s: 'added' | 'modified' | 'deleted' = 'modified';
@@ -688,21 +686,26 @@ export function startServer(options: ServerOptions): Promise<ServerResult> {
           const b1 = url.searchParams.get('b1');
           const b2 = url.searchParams.get('b2');
           const file = url.searchParams.get('file');
+          const oldFile = url.searchParams.get('oldFile') || file; // for renames: old path on b1
           const mode = url.searchParams.get('mode') || 'file';
-          if (!b1 || !b2 || !file) {
+          if (!b1 || !b2 || !file || !oldFile) {
             sendError(res, 400, 'Missing b1, b2, or file query params');
             return;
           }
-          const content1 = getBranchFileContent(b1, file);
+          const content1 = getBranchFileContent(b1, oldFile);
           const content2 = getBranchFileContent(b2, file);
 
           let patch = '';
           if (mode === 'git') {
-            // Git mode: standard commit-based diff (async)
-            patch = await gitAsync(['diff', `${b1}..${b2}`, '--', file]);
+            // Git mode: standard commit-based diff; handle renames by specifying both paths
+            if (oldFile !== file) {
+              patch = await gitAsync(['diff', `${b1}..${b2}`, '--', oldFile, file]);
+            } else {
+              patch = await gitAsync(['diff', `${b1}..${b2}`, '--', file]);
+            }
           } else if (content1 !== null && content2 !== null) {
-            // File mode, both sides exist: compare blobs directly for proper diff with context
-            patch = await gitAsync(['diff', `${b1}:${file}`, `${b2}:${file}`]);
+            // File mode, both sides exist: compare blobs directly; use oldFile on b1 side for renames
+            patch = await gitAsync(['diff', `${b1}:${oldFile}`, `${b2}:${file}`]);
           } else if (content1 === null && content2 !== null) {
             // File was added: all lines are additions
             const lines = content2.split('\n');
@@ -723,6 +726,64 @@ export function startServer(options: ServerOptions): Promise<ServerResult> {
 
           const parsed = patch ? parseDiff(patch) : [];
           sendJson(res, { patch, files: parsed, content1, content2 });
+          return;
+        }
+
+        if (pathname === '/api/merge-conflicts' && req.method === 'GET') {
+          const b1 = url.searchParams.get('b1');
+          const b2 = url.searchParams.get('b2');
+          if (!b1 || !b2) {
+            sendError(res, 400, 'Missing b1 or b2 query params');
+            return;
+          }
+
+          interface ConflictFile { path: string; type: string }
+
+          async function detectConflicts(): Promise<{ files: ConflictFile[]; method: 'merge-tree' | 'intersection' }> {
+            try {
+              // git 2.38+: merge-tree writes merged tree to ODB without touching working tree
+              await execFileAsync('git', ['merge-tree', '--write-tree', b1!, b2!], {
+                encoding: 'utf-8',
+                maxBuffer: 5 * 1024 * 1024,
+              });
+              return { files: [], method: 'merge-tree' };
+            } catch (e: unknown) {
+              const err = e as { code?: number; stderr?: string; message?: string };
+              if (err.code === 1 && typeof err.stderr === 'string') {
+                // Conflicts detected — parse CONFLICT lines from stderr
+                const files: ConflictFile[] = [];
+                for (const line of err.stderr.split('\n')) {
+                  if (!line.startsWith('CONFLICT')) continue;
+                  const contentMatch = line.match(/^CONFLICT \(([^)]+)\):.*\bin (.+)$/);
+                  if (contentMatch) {
+                    files.push({ type: contentMatch[1], path: contentMatch[2].trim() });
+                    continue;
+                  }
+                  const modMatch = line.match(/^CONFLICT \(([^)]+)\): (\S+)/);
+                  if (modMatch) {
+                    files.push({ type: modMatch[1], path: modMatch[2] });
+                  }
+                }
+                return { files, method: 'merge-tree' };
+              }
+              // Older git — fall back to intersection-of-changes heuristic
+              const base = (await gitAsync(['merge-base', b1!, b2!])).trim();
+              if (!base) return { files: [], method: 'intersection' };
+              const [changedInB1, changedInB2] = await Promise.all([
+                gitAsync(['diff', '--name-only', base, b1!]),
+                gitAsync(['diff', '--name-only', base, b2!]),
+              ]);
+              const b1Set = new Set(changedInB1.split('\n').filter(Boolean));
+              const intersection: ConflictFile[] = changedInB2
+                .split('\n')
+                .filter(p => p && b1Set.has(p))
+                .map(path => ({ path, type: 'potential' }));
+              return { files: intersection, method: 'intersection' };
+            }
+          }
+
+          const result = await detectConflicts();
+          sendJson(res, { conflicts: result.files, total: result.files.length, method: result.method });
           return;
         }
 

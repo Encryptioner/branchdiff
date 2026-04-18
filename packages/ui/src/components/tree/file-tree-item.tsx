@@ -62,12 +62,16 @@ export function FileTreeItem(props: FileTreeItemProps) {
     return (
       <>
         <button
-          className="flex items-center gap-1.5 w-full py-1 pr-2 text-left text-[13px] hover:bg-hover cursor-pointer"
+          className="flex items-center gap-1.5 w-full py-1 pr-2 text-left text-[13px] hover:bg-hover cursor-pointer group/dir"
           style={{ paddingLeft: `${paddingLeft}px` }}
           onClick={handleRowClick}
           onContextMenu={handleContextMenu}
         >
-          <span onClick={handleChevronClick} className="relative flex items-center rounded p-0.5 hover:bg-border/70 transition-colors">
+          <span
+            onClick={handleChevronClick}
+            className="relative flex items-center rounded p-0.5 bg-border/40 group-hover/dir:bg-border/70 transition-colors shrink-0"
+            title={isExpanded ? 'Collapse folder' : 'Expand folder'}
+          >
             <ChevronIcon expanded={isExpanded} />
           </span>
           <FolderIcon open={isExpanded} />
