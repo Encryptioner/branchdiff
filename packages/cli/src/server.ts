@@ -620,7 +620,7 @@ export function startServer(options: ServerOptions): Promise<ServerResult> {
         if (pathname === '/api/compare' && req.method === 'GET') {
           const b1 = url.searchParams.get('b1');
           const b2 = url.searchParams.get('b2');
-          const mode = url.searchParams.get('mode') || 'file';
+          const mode = url.searchParams.get('mode') || 'git';
           if (!b1 || !b2) {
             sendError(res, 400, 'Missing b1 or b2 query params');
             return;

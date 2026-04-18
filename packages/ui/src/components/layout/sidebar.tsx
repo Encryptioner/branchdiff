@@ -183,9 +183,7 @@ export function Sidebar(props: SidebarProps) {
             <span className="flex items-center gap-2">
               Commits
               <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 bg-bg-tertiary rounded-full text-[10px] font-semibold text-text-muted">
-                {commitSearch.trim()
-                  ? `${filteredCommits.length}/${branchCommits!.length}`
-                  : branchCommits!.length}
+                {branchCommits!.length}
               </span>
             </span>
             <ChevronIcon expanded={showCommits} />
@@ -212,9 +210,20 @@ export function Sidebar(props: SidebarProps) {
                   )}
                 </div>
               </div>
-              <div className="max-h-56 overflow-y-auto border-t border-border">
-                <BranchCommitList commits={filteredCommits} b1={b1} b2={b2} />
-              </div>
+              {commitSearch.trim() && (
+                <div className="px-3 pt-1 pb-2 shrink-0">
+                  <span className="text-[11px] text-text-muted">
+                    {filteredCommits.length === 0
+                      ? 'No matching commits'
+                      : `${filteredCommits.length} match${filteredCommits.length !== 1 ? 'es' : ''}`}
+                  </span>
+                </div>
+              )}
+              {filteredCommits.length > 0 && (
+                <div className="max-h-56 overflow-y-auto border-t border-border">
+                  <BranchCommitList commits={filteredCommits} b1={b1} b2={b2} />
+                </div>
+              )}
             </>
           )}
         </div>
