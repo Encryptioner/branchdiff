@@ -2,8 +2,8 @@
 
 **Visual file-level git branch diff in your browser.**
 
-[![npm](https://img.shields.io/npm/v/@encryptioner/branchdiff.svg)](https://www.npmjs.com/package/@encryptioner/branchdiff)
-[![license](https://img.shields.io/npm/l/@encryptioner/branchdiff.svg)](./LICENSE.md)
+[![npm](https://img.shields.io/npm/v/@encryptioner%2Fbranchdiff.svg)](https://www.npmjs.com/package/@encryptioner/branchdiff)
+[![license](https://img.shields.io/npm/l/@encryptioner%2Fbranchdiff.svg)](./LICENSE.md)
 
 ## Why branchdiff?
 
