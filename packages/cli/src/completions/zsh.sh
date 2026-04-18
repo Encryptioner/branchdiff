@@ -1,4 +1,3 @@
-#compdef branchdiff
 # branchdiff shell completion
 
 _branchdiff() {
@@ -52,4 +51,4 @@ _branchdiff() {
   esac
 }
 
-_branchdiff "$@"
+compdef _branchdiff branchdiff
