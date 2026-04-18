@@ -293,4 +293,4 @@ rm -rf ~/.branchdiff   # nuclear option
 - [DEVELOPMENT.md](./DEVELOPMENT.md) — cloning, local linking, releasing
 - [../OVERVIEW.md](../OVERVIEW.md) — architecture
 - [GitHub issues](https://github.com/Encryptioner/branchdiff/issues) — bug reports, feature requests
-- [npm](https://www.npmjs.com/package/branchdiff)
+- [npm](https://www.npmjs.com/package/@encryptioner/branchdiff)

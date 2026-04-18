@@ -114,4 +114,4 @@ git push "$REMOTE" "$TAG"
 echo
 echo "✓ Pushed $TAG to $REMOTE. GitHub Actions will now publish."
 echo "  https://github.com/Encryptioner/branchdiff/actions"
-echo "  https://www.npmjs.com/package/branchdiff"
+echo "  https://www.npmjs.com/package/@encryptioner/branchdiff"

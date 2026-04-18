@@ -31,7 +31,15 @@ if [[ -n "$(git status --porcelain)" ]]; then
   exit 1
 fi
 
-# 2. Get version to re-release
+# 2. Branch check
+CURRENT_BRANCH="$(git branch --show-current)"
+if [[ "$CURRENT_BRANCH" != "master" && "${RELEASE_ALLOW_BRANCH:-0}" != "1" ]]; then
+  echo "✗ Not on master (current: $CURRENT_BRANCH)." >&2
+  echo "  Override: RELEASE_ALLOW_BRANCH=1 $0 ${1:-}" >&2
+  exit 1
+fi
+
+# 3. Get version to re-release
 if [[ -n "${1:-}" ]]; then
   # Use provided version (strip leading 'v' if present)
   VERSION="${1#v}"
@@ -42,12 +50,13 @@ fi
 
 TAG="v$VERSION"
 
-# 3. Confirm version
+# 4. Confirm version
+echo "• Branch:                $CURRENT_BRANCH"
 echo "• Version to re-release: $VERSION"
 echo "• Tag:                   $TAG"
 echo
 
-# 4. Detect GitHub remote
+# 5. Detect GitHub remote
 REMOTE=""
 for r in origin upstream; do
   if git remote get-url "$r" >/dev/null 2>&1; then
@@ -64,7 +73,7 @@ fi
 echo "• Remote: $REMOTE"
 echo
 
-# 5. Check if tag exists locally or on remote
+# 6. Check if tag exists locally or on remote
 TAG_EXISTS_LOCAL="false"
 TAG_EXISTS_REMOTE="false"
 
@@ -86,7 +95,7 @@ echo
 read -r -p "Proceed with re-release? [y/N] " ans
 [[ "$ans" =~ ^[Yy]$ ]] || { echo "Cancelled."; exit 0; }
 
-# 6. Remove stale tags
+# 7. Remove stale tags
 if [[ "$TAG_EXISTS_LOCAL" == "true" ]]; then
   echo "→ Removing local tag $TAG"
   git tag -d "$TAG" >/dev/null
@@ -97,15 +106,17 @@ if [[ "$TAG_EXISTS_REMOTE" == "true" ]]; then
   git push "$REMOTE" ":refs/tags/$TAG" >/dev/null
 fi
 
-# 7. Create fresh tag
+# 8. Create fresh tag
 echo "→ Creating annotated tag $TAG"
 git tag -a "$TAG" -m "Release $TAG (retry)"
 
-# 8. Push tag
+# 9. Push branch and tag
+echo "→ Pushing branch $CURRENT_BRANCH to $REMOTE"
+git push "$REMOTE" "$CURRENT_BRANCH"
 echo "→ Pushing tag $TAG to $REMOTE"
 git push "$REMOTE" "$TAG"
 
 echo
 echo "✓ Re-released $TAG to $REMOTE. GitHub Actions will now publish."
 echo "  https://github.com/Encryptioner/branchdiff/actions"
-echo "  https://www.npmjs.com/package/branchdiff"
+echo "  https://www.npmjs.com/package/@encryptioner/branchdiff"
