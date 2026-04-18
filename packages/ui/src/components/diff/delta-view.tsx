@@ -99,8 +99,9 @@ export function DeltaView({ b1, b2 }: DeltaViewProps) {
           </div>
           <p className="text-text-muted text-xs leading-relaxed">
             Compares what{' '}
-            <span className="font-medium text-text">file mode</span> (blob hash comparison) and{' '}
-            <span className="font-medium text-text">git mode</span> (commit-based diff) each report.
+            <span className="font-medium text-text">file mode</span> (direct blob hash comparison — no ancestry, no rename heuristics) and{' '}
+            <span className="font-medium text-text">git mode</span> (git tree diff with rename detection) each report.
+            Discrepancies surface renames, permission-only changes, and content that diverged silently through conflict resolution.
           </p>
           {totalDelta === 0 ? (
             <p className="text-added text-xs font-medium">✓ Both modes report identical file sets</p>
@@ -134,7 +135,7 @@ export function DeltaView({ b1, b2 }: DeltaViewProps) {
             {gitOnly.length > 0 && (
               <Section
                 title="Git only"
-                subtitle="in git diff but not file diff"
+                subtitle="git reports changed; blob content is identical (likely a rename or permission change)"
                 count={gitOnly.length}
                 category="git-only"
                 files={gitOnly}
@@ -145,7 +146,7 @@ export function DeltaView({ b1, b2 }: DeltaViewProps) {
             {fileOnly.length > 0 && (
               <Section
                 title="File only"
-                subtitle="in file diff but not git diff"
+                subtitle="blob content differs; git classifies it differently (e.g., as a rename of another file)"
                 count={fileOnly.length}
                 category="file-only"
                 files={fileOnly}
@@ -160,7 +161,7 @@ export function DeltaView({ b1, b2 }: DeltaViewProps) {
         {shared.length > 0 && (
           <Section
             title="Shared"
-            subtitle="both modes agree this file changed"
+            subtitle="both modes agree this file has different content — high confidence it genuinely changed"
             count={shared.length}
             category="shared"
             files={shared}

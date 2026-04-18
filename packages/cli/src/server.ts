@@ -633,13 +633,22 @@ export function startServer(options: ServerOptions): Promise<ServerResult> {
             files = output
               .split('\n')
               .filter(Boolean)
-              .map(line => {
-                const [status, ...pathParts] = line.split('\t');
-                const path = pathParts.join('\t');
+              .flatMap(line => {
+                const parts = line.split('\t');
+                const status = parts[0];
+                // Rename (R) or Copy (C): parts[1]=old path, parts[2]=new path
+                // Report as delete+add to stay consistent with file mode's path-based comparison.
+                if (status.startsWith('R') || status.startsWith('C')) {
+                  return [
+                    { path: parts[1], status: 'deleted' as const },
+                    { path: parts[2], status: 'added' as const },
+                  ];
+                }
+                const path = parts.slice(1).join('\t');
                 let s: 'added' | 'modified' | 'deleted' = 'modified';
                 if (status === 'A') s = 'added';
                 else if (status === 'D') s = 'deleted';
-                return { path, status: s };
+                return [{ path, status: s }];
               });
           } else {
             // File mode: use blob comparison (default)
