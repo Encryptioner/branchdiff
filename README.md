@@ -1,15 +1,15 @@
 # branchdiff
 
-**Visual file-level git branch diff in your browser.**
+**Visual git branch diff viewer in your browser — local, no cloud, no telemetry.**
 
 [![npm](https://img.shields.io/npm/v/@encryptioner%2Fbranchdiff.svg)](https://www.npmjs.com/package/@encryptioner/branchdiff)
 [![license](https://img.shields.io/npm/l/@encryptioner%2Fbranchdiff.svg)](./LICENSE.md)
 
 ## Why branchdiff?
 
-`git diff branch1..branch2` compares **commit ancestry**, not file content. If two branches reached the same state via different histories (rebase, cherry-pick, squash), git diff shows noise.
-
-branchdiff compares **blob hashes at each branch tip** — identical content is silently skipped, regardless of history.
+A beefed-up `git diff` for the browser:
+- **Git mode (default)** — standard commit-level diff (`git diff branch1..branch2`) with syntax highlighting, comments, and side-by-side/unified views
+- **File mode** — blob-hash comparison to detect silent merges (when branches reached the same state via different histories)
 
 ```
 main:  A → B → C → D   (file.js = "hello world")
@@ -38,9 +38,9 @@ Shell tab-completion is installed automatically. After install, restart your ter
 ```bash
 branchdiff                              # all uncommitted changes
 branchdiff main                         # current branch vs main
-branchdiff main feat                    # branch comparison (file-level)
-branchdiff main feat --mode git         # commit-level diff
-branchdiff main feat --mode file        # blob hash comparison (default)
+branchdiff main feat                    # branch comparison (git-level, default)
+branchdiff main feat --mode file        # blob hash comparison
+branchdiff main feat --mode git         # commit-level diff (default)
 # Switch to Delta mode (Δ) in the browser UI to compare what each mode reports
 branchdiff origin/stage/prod            # remote refs supported
 branchdiff 1df74cc 3b9a54d              # any two commits (SHAs)
@@ -56,7 +56,7 @@ branchdiff tree                         # file browser
 
 | Flag | Description |
 |---|---|
-| `--mode <file\|git>` | Diff mode: file (blob hashes, default) or git (commit ancestry) |
+| `--mode <file\|git>` | Diff mode: file (blob hashes) or git (commit ancestry, default) |
 | `--base <ref>` | Base ref to compare from |
 | `--compare <ref>` | Ref to compare against |
 | `--port <port>` | Port (default: auto-assigned from 5391) |
@@ -117,28 +117,28 @@ branchdiff agent resolve abc123de --summary "Fixed"      # mark thread resolved
 
 ## Branch comparison modes
 
-### File mode (default — blob hashes)
+### Git mode (default — commit ancestry)
+
+Uses **commit ancestry** comparison (`git diff branch1..branch2`).
+
+- Use when: you care about the commit history between branches
+- Best for: standard code review, understanding how a feature evolved
+
+```bash
+branchdiff main feat
+branchdiff main feat --mode git
+```
+
+### File mode (blob hashes)
 
 Compares **actual file content** at each branch tip, ignoring commit history.
 
 - Use when: branches may have diverged via rebase/cherry-pick but reached the same state
 - Shows files with different blob hashes only
-- Best for: actual code-change review, regardless of commit path
+- Best for: silent merge conflict detection, ignoring commit-path noise
 
 ```bash
-branchdiff main feat
 branchdiff main feat --mode file
-```
-
-### Git mode (standard `git diff`)
-
-Uses **commit ancestry** comparison (`git diff branch1..branch2`).
-
-- Use when: you care about the commit history between branches
-- Best for: understanding how a feature evolved
-
-```bash
-branchdiff main feat --mode git
 ```
 
 **Key difference:**

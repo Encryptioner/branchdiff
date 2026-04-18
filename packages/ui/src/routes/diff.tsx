@@ -25,7 +25,7 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
       queryClient.prefetchQuery(branchComparisonOptions(b1, b2, 'file'));
       queryClient.prefetchQuery(branchComparisonOptions(b1, b2, 'git'));
     } else {
-      queryClient.prefetchQuery(branchComparisonOptions(b1, b2, mode ?? 'file'));
+      queryClient.prefetchQuery(branchComparisonOptions(b1, b2, mode ?? 'git'));
     }
     queryClient.prefetchQuery(branchCommitsOptions(b1, b2));
   } else {
@@ -34,7 +34,7 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
 
   await queryClient.ensureQueryData(repoInfoOptions(ref));
 
-  return { ref, theme, view, b1: b1 ?? null, b2: b2 ?? null, mode: (mode ?? "file") as "file" | "git" | "delta" };
+  return { ref, theme, view, b1: b1 ?? null, b2: b2 ?? null, mode: (mode ?? "git") as "file" | "git" | "delta" };
 }
 
 export default function DiffRoute({ loaderData }: Route.ComponentProps) {

@@ -44,7 +44,7 @@ export function DiffPage() {
   const [showFullDiff, setShowFullDiff] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   // Mode as local state so switching is instant — URL synced via replaceState to avoid loader re-run
-  const [mode, setMode] = useState<'file' | 'git' | 'delta'>(initialMode || 'file');
+  const [mode, setMode] = useState<'file' | 'git' | 'delta'>(initialMode || 'git');
   const { theme, toggleTheme } = useTheme(initialTheme);
   const queryClient = useQueryClient();
 

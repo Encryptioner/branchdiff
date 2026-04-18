@@ -69,7 +69,7 @@ CLI args / interactive prompt
         ▼
   startServer({ diffArgs, branch1, branch2, mode })
         │
-        ├── Branch comparison mode (mode=file):
+        ├── Branch comparison mode (mode=git default, or mode=file):
         │   ├── GET /api/compare?b1=X&b2=Y     file list with statuses
         │   ├── GET /api/file-diff?b1=X&b2=Y&file=PATH  per-file patch
         │   └── GET /api/branches               branch list for UI
@@ -107,8 +107,8 @@ git ls-tree -r branch2
 ### 2. Dual mode: file-level + git-level
 
 ```
-branchdiff main feat --mode file   # blob hash comparison (default, fast)
-branchdiff main feat --mode git    # git diff (commit ancestry, standard)
+branchdiff main feat --mode file   # blob hash comparison (file-level)
+branchdiff main feat --mode git    # git diff (default, commit ancestry)
 ```
 
 File mode skips identical content regardless of history. Git mode shows commit-level changes.

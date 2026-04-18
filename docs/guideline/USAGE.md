@@ -116,13 +116,13 @@ branchdiff origin/main feature        # remote + local
 ### Branch comparison modes
 
 ```bash
-branchdiff main feature --mode file   # (default) compare blob hashes
-branchdiff main feature --mode git    # standard git diff (commit-level)
+branchdiff main feature --mode file   # compare blob hashes (file-level)
+branchdiff main feature --mode git    # (default) standard git diff (commit-level)
 ```
 
 **When to use which:**
-- `file` — you want *what is different right now*, regardless of how the branches got there. Best for PR review.
-- `git` — you want the commit-level diff, including history noise. Best for understanding how a feature evolved.
+- `file` — you want *what is different right now*, regardless of how the branches got there. Best for silent merge conflict detection.
+- `git` — you want the commit-level diff, including history. Best for PR review and understanding how a feature evolved.
 
 Example: if `main` and `feature` both added the same comment via different commits, `--mode file` reports no change, `--mode git` reports a modification.
 
@@ -198,7 +198,7 @@ Severity tags: `[must-fix]`, `[suggestion]`, `[nit]`, `[question]` — placed at
 
 | Flag | Default | Description |
 |---|---|---|
-| `--mode <file\|git>` | `file` | Diff mode: file (blob hashes) or git (commit ancestry) |
+| `--mode <file\|git>` | `git` | Diff mode: file (blob hashes) or git (commit ancestry) |
 | `--base <ref>` | — | Base ref to compare from |
 | `--compare <ref>` | — | Ref to compare against |
 | `--port <port>` | auto 5391+ | HTTP server port |
