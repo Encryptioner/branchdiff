@@ -1,5 +1,5 @@
 {
-  "name": "branchdiff",
+  "name": "@encryptioner/branchdiff",
   "version": "1.0.0",
   "description": "Visual file-level git branch diff in your browser",
   "keywords": [

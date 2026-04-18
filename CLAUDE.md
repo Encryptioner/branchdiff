@@ -40,7 +40,7 @@
 - Shiki and Mermaid are heavy. Both are now dynamic-imported: Shiki core in `use-highlighter.ts`, Mermaid in `mermaid-diagram.tsx`. Keep them that way — static-imports in any file consumed from the root bundle will re-bloat first paint.
 
 ## Publishing to npm
-- Published package: **`branchdiff`** (unscoped, lives in `packages/cli/`, `name` in `package.json`). Root is `@branchdiff/root` and `private: true`.
+- Published package: **`@encryptioner/branchdiff`** (scoped, lives in `packages/cli/`, `name` in `package.json`). CLI command remains `branchdiff`. Root is `@branchdiff/root` and `private: true`.
 - Release flow: `pnpm run release:patch|minor|major` → bumps `packages/cli/package.json`, commits, tags `vX.Y.Z`, pushes. `.github/workflows/publish.yml` fires on the tag and publishes with provenance.
 - CI workflow: `.github/workflows/ci.yml` runs build + typecheck on push/PR to `master` across Node 18/20/22/24.
 - Required GitHub secret: `NPM_TOKEN` — a *Granular Access Token* with read+write permission on the `branchdiff` package.
