@@ -1,7 +1,7 @@
 import type { DiffFile, DiffHunk } from '@branchdiff/parser';
 import type { CommentSide } from '../components/comments/types';
 
-export type ViewMode = 'unified' | 'split';
+export type ViewMode = 'unified' | 'split' | 'full';
 
 const WORKING_TREE_REFS = new Set(['work', 'staged', 'unstaged']);
 

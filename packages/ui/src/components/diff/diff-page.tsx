@@ -477,6 +477,7 @@ export function DiffPage() {
         onGitHubPulled={() => queryClient.invalidateQueries({ queryKey: ['threads'] })}
         diffMode={isBranchComparison ? mode : undefined}
         onDiffModeChange={isBranchComparison ? handleDiffModeChange : undefined}
+        showFullViewMode={isBranchComparison}
       />
       {isStale && <StaleDiffBanner onRefresh={handleRefreshDiff} />}
       <div className="flex flex-1 overflow-hidden">

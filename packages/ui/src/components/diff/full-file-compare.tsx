@@ -23,7 +23,9 @@ interface FullFileCompareProps {
   mode: 'file' | 'git';
   initialViewMode: PaneViewMode;
   theme: 'light' | 'dark';
-  onClose: () => void;
+  onClose?: () => void;
+  /** Render inline (no dialog backdrop, no close button, fixed height) */
+  inline?: boolean;
 }
 
 function buildLineStatus(hunks: DiffHunk[]): {
@@ -181,7 +183,7 @@ function FilePane(props: PaneProps) {
 }
 
 export function FullFileCompare(props: FullFileCompareProps) {
-  const { b1, b2, filePath, oldPath, newPath, status, mode, initialViewMode, theme, onClose } = props;
+  const { b1, b2, filePath, oldPath, newPath, status, mode, initialViewMode, theme, onClose, inline } = props;
   const dialogRef = useRef<HTMLDialogElement>(null);
   const leftScrollRef = useRef<HTMLDivElement>(null);
   const rightScrollRef = useRef<HTMLDivElement>(null);
@@ -189,11 +191,12 @@ export function FullFileCompare(props: FullFileCompareProps) {
   const [scrollSync, setScrollSync] = useState(true);
 
   useEffect(() => {
+    if (inline) return;
     const dialog = dialogRef.current;
     if (!dialog) return;
     dialog.showModal();
     return () => dialog.close();
-  }, []);
+  }, [inline]);
 
   // Split-view scroll sync — done with raw DOM listeners + echo counters so
   // programmatic scrolls don't loop back through React state. Re-running on
@@ -299,117 +302,139 @@ export function FullFileCompare(props: FullFileCompareProps) {
     ? `${oldPath} → ${newPath}`
     : filePath;
 
+  const controls = (
+    <div className="flex items-center gap-3 shrink-0">
+      <span className="text-[11px] text-text-muted font-mono">
+        <span className="text-added">+{stats.additions}</span>{' '}
+        <span className="text-deleted">-{stats.deletions}</span>
+      </span>
+      <div className="flex items-center gap-0.5 bg-bg-secondary rounded p-0.5 border border-border">
+        <button
+          className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] cursor-pointer ${
+            viewMode === 'split' ? 'bg-bg text-text shadow-sm' : 'text-text-muted hover:text-text'
+          }`}
+          onClick={() => setViewMode('split')}
+          title="Split view"
+        >
+          <SplitViewIcon className="w-3 h-3" />
+          Split
+        </button>
+        <button
+          className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] cursor-pointer ${
+            viewMode === 'unified' ? 'bg-bg text-text shadow-sm' : 'text-text-muted hover:text-text'
+          }`}
+          onClick={() => setViewMode('unified')}
+          title="Unified view"
+        >
+          <UnifiedViewIcon className="w-3 h-3" />
+          Unified
+        </button>
+      </div>
+      {viewMode === 'split' && (
+        <label className="flex items-center gap-1.5 text-[11px] text-text-muted cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={scrollSync}
+            onChange={(e) => setScrollSync(e.target.checked)}
+            className="w-3 h-3 cursor-pointer"
+          />
+          Sync scroll
+        </label>
+      )}
+      {!inline && (
+        <button
+          className="p-1 rounded-md text-text-muted hover:text-text hover:bg-hover cursor-pointer"
+          onClick={onClose}
+          title="Close (Esc)"
+        >
+          <XIcon className="w-4 h-4" />
+        </button>
+      )}
+    </div>
+  );
+
+  const body = (
+    <>
+      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border shrink-0">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          {!inline && (
+            <span className="text-xs font-semibold text-text-muted uppercase tracking-wide shrink-0">Full file</span>
+          )}
+          <span className="font-mono text-xs truncate text-text" title={title}>{title}</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-tertiary text-text-muted font-mono uppercase tracking-wide shrink-0">
+            {mode}
+          </span>
+        </div>
+        {controls}
+      </div>
+      <div className="flex-1 overflow-hidden p-3">
+        {isLoading ? (
+          <div className="flex items-center justify-center h-full gap-2 text-text-muted text-sm">
+            <Spinner className="w-4 h-4" />
+            Loading file contents…
+          </div>
+        ) : error ? (
+          <div className="flex items-center justify-center h-full text-deleted text-sm">
+            Failed to load file content
+          </div>
+        ) : viewMode === 'split' ? (
+          <div className="grid grid-cols-2 gap-3 h-full min-h-0">
+            <FilePane
+              side="old"
+              lines={content1Lines}
+              highlighted={leftHighlighted}
+              statusMap={oldStatus}
+              scrollRef={leftScrollRef}
+              label={`${b1}${oldPath && oldPath !== filePath ? ` · ${oldPath}` : ''}`}
+              empty={status === 'added'}
+              emptyLabel="File does not exist on this side"
+            />
+            <FilePane
+              side="new"
+              lines={content2Lines}
+              highlighted={rightHighlighted}
+              statusMap={newStatus}
+              scrollRef={rightScrollRef}
+              label={`${b2}${newPath && newPath !== filePath ? ` · ${newPath}` : ''}`}
+              empty={status === 'deleted'}
+              emptyLabel="File does not exist on this side"
+            />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 h-full min-h-0">
+            <UnifiedPane
+              oldLines={content1Lines}
+              newLines={content2Lines}
+              oldHighlighted={leftHighlighted}
+              newHighlighted={rightHighlighted}
+              oldStatus={oldStatus}
+              newStatus={newStatus}
+            />
+          </div>
+        )}
+      </div>
+    </>
+  );
+
+  if (inline) {
+    return (
+      <div className="flex flex-col border-t border-border h-[560px]">
+        {body}
+      </div>
+    );
+  }
+
   return (
     <dialog
       ref={dialogRef}
       className="bg-bg text-text border border-border rounded-xl shadow-md w-[95vw] max-w-[1400px] h-[92vh] backdrop:bg-black/60 backdrop:backdrop-blur-sm p-0 m-auto fixed inset-0"
       onClose={onClose}
       onClick={(e) => {
-        if (e.target === dialogRef.current) onClose();
+        if (e.target === dialogRef.current) onClose?.();
       }}
     >
       <div className="flex flex-col h-full">
-        <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border shrink-0">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <span className="text-xs font-semibold text-text-muted uppercase tracking-wide shrink-0">Full file</span>
-            <span className="font-mono text-xs truncate text-text" title={title}>{title}</span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-tertiary text-text-muted font-mono uppercase tracking-wide shrink-0">
-              {mode}
-            </span>
-          </div>
-          <div className="flex items-center gap-3 shrink-0">
-            <span className="text-[11px] text-text-muted font-mono">
-              <span className="text-added">+{stats.additions}</span>{' '}
-              <span className="text-deleted">-{stats.deletions}</span>
-            </span>
-            <div className="flex items-center gap-0.5 bg-bg-secondary rounded p-0.5 border border-border">
-              <button
-                className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] cursor-pointer ${
-                  viewMode === 'split' ? 'bg-bg text-text shadow-sm' : 'text-text-muted hover:text-text'
-                }`}
-                onClick={() => setViewMode('split')}
-                title="Split view"
-              >
-                <SplitViewIcon className="w-3 h-3" />
-                Split
-              </button>
-              <button
-                className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] cursor-pointer ${
-                  viewMode === 'unified' ? 'bg-bg text-text shadow-sm' : 'text-text-muted hover:text-text'
-                }`}
-                onClick={() => setViewMode('unified')}
-                title="Unified view"
-              >
-                <UnifiedViewIcon className="w-3 h-3" />
-                Unified
-              </button>
-            </div>
-            {viewMode === 'split' && (
-              <label className="flex items-center gap-1.5 text-[11px] text-text-muted cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={scrollSync}
-                  onChange={(e) => setScrollSync(e.target.checked)}
-                  className="w-3 h-3 cursor-pointer"
-                />
-                Sync scroll
-              </label>
-            )}
-            <button
-              className="p-1 rounded-md text-text-muted hover:text-text hover:bg-hover cursor-pointer"
-              onClick={onClose}
-              title="Close (Esc)"
-            >
-              <XIcon className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-        <div className="flex-1 overflow-hidden p-3">
-          {isLoading ? (
-            <div className="flex items-center justify-center h-full gap-2 text-text-muted text-sm">
-              <Spinner className="w-4 h-4" />
-              Loading file contents…
-            </div>
-          ) : error ? (
-            <div className="flex items-center justify-center h-full text-deleted text-sm">
-              Failed to load file content
-            </div>
-          ) : viewMode === 'split' ? (
-            <div className="grid grid-cols-2 gap-3 h-full min-h-0">
-              <FilePane
-                side="old"
-                lines={content1Lines}
-                highlighted={leftHighlighted}
-                statusMap={oldStatus}
-                scrollRef={leftScrollRef}
-                label={`${b1}${oldPath && oldPath !== filePath ? ` · ${oldPath}` : ''}`}
-                empty={status === 'added'}
-                emptyLabel="File does not exist on this side"
-              />
-              <FilePane
-                side="new"
-                lines={content2Lines}
-                highlighted={rightHighlighted}
-                statusMap={newStatus}
-                scrollRef={rightScrollRef}
-                label={`${b2}${newPath && newPath !== filePath ? ` · ${newPath}` : ''}`}
-                empty={status === 'deleted'}
-                emptyLabel="File does not exist on this side"
-              />
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 h-full min-h-0">
-              <UnifiedPane
-                oldLines={content1Lines}
-                newLines={content2Lines}
-                oldHighlighted={leftHighlighted}
-                newHighlighted={rightHighlighted}
-                oldStatus={oldStatus}
-                newStatus={newStatus}
-              />
-            </div>
-          )}
-        </div>
+        {body}
       </div>
     </dialog>
   );

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, type ReactNode } from 'react';
 import type { ParsedDiff } from '@branchdiff/parser';
 import { getFilePath } from '../../lib/diff-utils';
 import { UnifiedViewIcon } from '../icons/unified-view-icon';
@@ -8,6 +8,8 @@ import { EyeIcon } from '../icons/eye-icon';
 import { EyeOffIcon } from '../icons/eye-off-icon';
 import { KeyboardIcon } from '../icons/keyboard-icon';
 import { GitBranchIcon } from '../icons/git-branch-icon';
+import { FileIcon } from '../icons/file-icon';
+import { DeltaIcon } from '../icons/delta-icon';
 import { GitHubIcon } from '../icons/github-icon';
 import { DiffStats } from '../diff/diff-stats';
 import { GitHubDialog } from './github-dialog';
@@ -42,6 +44,8 @@ interface ToolbarProps {
   onGitHubPulled?: () => void;
   diffMode?: 'file' | 'git' | 'delta';
   onDiffModeChange?: (mode: 'file' | 'git' | 'delta') => void;
+  /** Show the 'Full' view mode option (branch comparison only) */
+  showFullViewMode?: boolean;
 }
 
 function extractCodeContext(diff: ParsedDiff | undefined, filePath: string, side: 'old' | 'new', startLine: number, endLine: number): string[] {
@@ -141,6 +145,7 @@ export function Toolbar(props: ToolbarProps) {
     onGitHubPulled,
     diffMode,
     onDiffModeChange,
+    showFullViewMode,
   } = props;
   const [showGitHub, setShowGitHub] = useState(false);
 
@@ -148,15 +153,21 @@ export function Toolbar(props: ToolbarProps) {
     return formatThreadsForCopy(threads, diff, diffRef);
   }, [threads, diff, diffRef]);
 
-  const viewModeOptions = useMemo(() => [
-    { value: 'unified' as ViewMode, label: 'Unified', icon: <UnifiedViewIcon className="w-3.5 h-3.5" /> },
-    { value: 'split' as ViewMode, label: 'Split', icon: <SplitViewIcon className="w-3.5 h-3.5" /> },
-  ], []);
+  const viewModeOptions = useMemo(() => {
+    const opts: { value: ViewMode; label: string; icon: ReactNode }[] = [
+      { value: 'unified', label: 'Unified', icon: <UnifiedViewIcon className="w-3.5 h-3.5" /> },
+      { value: 'split', label: 'Split', icon: <SplitViewIcon className="w-3.5 h-3.5" /> },
+    ];
+    if (showFullViewMode) {
+      opts.push({ value: 'full', label: 'Full', icon: <SplitViewIcon className="w-3.5 h-3.5 opacity-70" /> });
+    }
+    return opts;
+  }, [showFullViewMode]);
 
   const diffModeOptions = useMemo(() => [
-    { value: 'file' as const, label: 'File' },
-    { value: 'git' as const, label: 'Git' },
-    { value: 'delta' as const, label: 'Δ' },
+    { value: 'file' as const, label: 'File', icon: <FileIcon className="w-3.5 h-3.5" /> },
+    { value: 'git' as const, label: 'Git', icon: <GitBranchIcon className="w-3.5 h-3.5" /> },
+    { value: 'delta' as const, label: 'Delta', icon: <DeltaIcon className="w-3.5 h-3.5" /> },
   ], []);
 
   return (
@@ -197,16 +208,19 @@ export function Toolbar(props: ToolbarProps) {
         {diffMode && onDiffModeChange && (
           <SegmentedToggle options={diffModeOptions} value={diffMode} onChange={onDiffModeChange} />
         )}
-        <label className="flex items-center gap-1.5 text-[11px] text-text-muted cursor-pointer select-none hover:text-text transition-colors">
-          <input
-            type="checkbox"
-            checked={showFullDiff}
-            onChange={() => onShowFullDiffChange(!showFullDiff)}
-            className="accent-accent cursor-pointer w-3 h-3"
-          />
-          Show full diff
-        </label>
-        <SegmentedToggle options={viewModeOptions} value={viewMode} onChange={onViewModeChange} />
+        <div className={`flex items-center gap-2 ${diffMode === 'delta' ? 'invisible' : ''}`}>
+          <label className="flex items-center gap-1.5 text-[11px] text-text-muted cursor-pointer select-none hover:text-text transition-colors">
+            <input
+              type="checkbox"
+              checked={showFullDiff}
+              onChange={() => onShowFullDiffChange(!showFullDiff)}
+              className="accent-accent cursor-pointer w-3 h-3"
+              tabIndex={diffMode === 'delta' ? -1 : undefined}
+            />
+            Show full diff
+          </label>
+          <SegmentedToggle options={viewModeOptions} value={viewMode} onChange={onViewModeChange} />
+        </div>
         <CommentToolbarActions
           threads={threads}
           onScrollToThread={onScrollToThread}

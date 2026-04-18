@@ -472,7 +472,21 @@ export function FileBlock(props: FileBlockProps) {
           </label>
         </div>
       </div>
-      {!collapsed && (
+      {!collapsed && viewMode === 'full' && branchCompare && !file.isBinary && (
+        <FullFileCompare
+          inline
+          b1={branchCompare.b1}
+          b2={branchCompare.b2}
+          filePath={filePath}
+          oldPath={file.oldPath}
+          newPath={file.newPath}
+          status={file.status}
+          mode={branchCompare.mode}
+          initialViewMode="split"
+          theme={theme || 'light'}
+        />
+      )}
+      {!collapsed && viewMode !== 'full' && (
         <div>
           {file.isBinary ? (
             <div className="p-4 text-center text-text-muted italic">Binary file not shown</div>
@@ -605,7 +619,7 @@ export function FileBlock(props: FileBlockProps) {
           oldPath={file.oldPath}
           newPath={file.newPath}
           status={file.status}
-          initialViewMode={viewMode}
+          initialViewMode={viewMode === 'unified' ? 'unified' : 'split'}
           theme={theme ?? 'light'}
           onClose={() => setFullFileOpen(false)}
         />
