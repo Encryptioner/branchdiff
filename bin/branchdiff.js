@@ -14,8 +14,8 @@ program
   .option('-p, --port <port>', 'Port to serve on', '7823')
   .option(
     '--mode <mode>',
-    'Diff mode: "file" (content-level, default) or "git" (commit-level)',
-    'file'
+    'Diff mode: "git" (commit-level, default) or "file" (content-level)',
+    'git'
   )
   .option('--no-open', 'Do not auto-open browser')
   .action(async (branch1, branch2, options) => {

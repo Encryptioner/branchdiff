@@ -442,6 +442,19 @@ export function DiffPage() {
     setActiveFile(path);
   }, []);
 
+  const handleStagedFileClick = useCallback((path: string) => {
+    setActiveFile(path);
+    setCollapsedFiles((prev) => {
+      if (!prev.has(path)) {
+        return prev;
+      }
+      const next = new Set(prev);
+      next.delete(path);
+      return next;
+    });
+    diffViewRef.current?.scrollToFile(path);
+  }, []);
+
   if (error) {
     return (
       <div className="flex flex-col min-h-screen bg-bg text-text font-sans">
@@ -527,6 +540,7 @@ export function DiffPage() {
             commentCountsByFile={commentCountsByFile}
             onFileClick={handleSidebarFileClick}
             onCommentedFileClick={handleSidebarCommentedFileClick}
+            onStagedFileClick={isBranchComparison ? handleStagedFileClick : undefined}
             branchCommits={isBranchComparison ? branchCommits : undefined}
             b1={isBranchComparison ? b1 ?? undefined : undefined}
             b2={isBranchComparison ? b2 ?? undefined : undefined}

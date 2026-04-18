@@ -398,7 +398,7 @@
   let b1        = urlP.get('b1');
   let b2        = urlP.get('b2');
   let viewMode  = 'side-by-side';
-  let diffMode  = urlP.get('mode') || 'file';
+  let diffMode  = urlP.get('mode') || 'git';
   let closedFolders = new Set(); // tracks collapsed folder paths
 
   // ── Boot ──────────────────────────────────────────────────────────────────
@@ -407,7 +407,7 @@
     config  = await fetchJson('/api/config');
     b1      = b1 || config.branch1;
     b2      = b2 || config.branch2;
-    diffMode = diffMode || config.mode || 'file';
+    diffMode = diffMode || config.mode || 'git';
 
     history.replaceState(null, '', `${location.pathname}?b1=${enc(b1)}&b2=${enc(b2)}&mode=${diffMode}`);
 

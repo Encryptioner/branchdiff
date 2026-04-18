@@ -369,6 +369,9 @@ export function fetchBranchConfig(b1?: string, b2?: string, mode?: string): Prom
 export interface BranchCommit extends Commit {
   side: 'b1' | 'b2';
   body?: string;
+  stagedFiles?: string[];
+  stagedCount?: number;
+  stagedStats?: Record<string, { additions: number; deletions: number }>;
 }
 
 export interface BranchCommitsResponse {

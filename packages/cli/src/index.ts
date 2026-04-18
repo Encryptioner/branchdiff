@@ -41,7 +41,7 @@ program
   .argument('[refs...]', 'Git refs to diff')
   .option('--base <ref>', 'Base ref to compare from (e.g. main, HEAD~3, v1.0.0)')
   .option('--compare <ref>', 'Ref to compare against base (default: working tree)')
-  .option('--mode <mode>', 'Diff mode: file (blob hash comparison), git (commit-level), or delta (compare both modes)', 'file')
+  .option('--mode <mode>', 'Diff mode: file (blob hash comparison), git (commit-level), or delta (compare both modes)', 'git')
   .option('--port <port>', 'Port to use (default: auto-assigned from 5391)', '5391')
   .option('--no-open', 'Do not open browser automatically')
   .option('--quiet', 'Minimal terminal output')
@@ -193,7 +193,7 @@ range syntax (main..feature, main...feature) also work.`)
       }
     }
 
-    const mode = opts.mode === 'git' ? 'git' : opts.mode === 'delta' ? 'delta' : 'file';
+    const mode = opts.mode === 'file' ? 'file' : opts.mode === 'delta' ? 'delta' : 'git';
     const diffArgs: string[] = [];
     let description = '';
     let branch1: string | undefined;

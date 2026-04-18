@@ -38,6 +38,7 @@ interface SidebarProps {
   commentCountsByFile: Map<string, number>;
   onFileClick: (path: string) => void;
   onCommentedFileClick: (path: string) => void;
+  onStagedFileClick?: (path: string) => void;
   branchCommits?: BranchCommit[];
   b1?: string;
   b2?: string;
@@ -51,6 +52,7 @@ export function Sidebar(props: SidebarProps) {
     commentCountsByFile,
     onFileClick,
     onCommentedFileClick,
+    onStagedFileClick,
     branchCommits,
     b1,
     b2,
@@ -221,7 +223,7 @@ export function Sidebar(props: SidebarProps) {
               )}
               {filteredCommits.length > 0 && (
                 <div className="max-h-56 overflow-y-auto border-t border-border">
-                  <BranchCommitList commits={filteredCommits} b1={b1} b2={b2} />
+                  <BranchCommitList commits={filteredCommits} b1={b1} b2={b2} onStagedFileClick={onStagedFileClick} />
                 </div>
               )}
             </>

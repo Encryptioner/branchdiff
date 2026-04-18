@@ -326,7 +326,47 @@ export function startServer(options: ServerOptions): Promise<ServerResult> {
             return;
           }
           try {
-            const commits = getBranchCommits(b1, b2);
+            let commits = getBranchCommits(b1, b2);
+            const currentBranch = getCurrentBranch();
+
+            // Add pseudo-commit for uncommitted staged changes if one branch is current
+            let stagedSide: 'b1' | 'b2' | null = null;
+            if (currentBranch === b2) stagedSide = 'b2';
+            else if (currentBranch === b1) stagedSide = 'b1';
+
+            if (stagedSide) {
+              const stagedFiles = getStagedFiles();
+              if (stagedFiles.length > 0) {
+                // Get line-level stats for staged files
+                const numstatOut = await gitAsync(['diff', '--cached', '--numstat']);
+                const stagedStats: Record<string, { additions: number; deletions: number }> = {};
+                for (const line of numstatOut.split('\n')) {
+                  if (!line.trim()) continue;
+                  const parts = line.split('\t');
+                  if (parts.length < 3) continue;
+                  const added = parseInt(parts[0], 10);
+                  const deleted = parseInt(parts[1], 10);
+                  const path = parts[2];
+                  if (!isNaN(added) && !isNaN(deleted)) {
+                    stagedStats[path] = { additions: added, deletions: deleted };
+                  }
+                }
+
+                const stagedCommit = {
+                  hash: '__staged__',
+                  shortHash: 'STAGED',
+                  message: 'Uncommitted changes from worktree',
+                  relativeDate: 'now',
+                  author: null,
+                  side: stagedSide,
+                  stagedFiles,
+                  stagedCount: stagedFiles.length,
+                  stagedStats,
+                };
+                commits = [stagedCommit as any, ...commits];
+              }
+            }
+
             sendJson(res, { commits });
           } catch (err) {
             sendError(res, 500, `Failed to get branch commits: ${err}`);
@@ -687,7 +727,7 @@ export function startServer(options: ServerOptions): Promise<ServerResult> {
           const b2 = url.searchParams.get('b2');
           const file = url.searchParams.get('file');
           const oldFile = url.searchParams.get('oldFile') || file; // for renames: old path on b1
-          const mode = url.searchParams.get('mode') || 'file';
+          const mode = url.searchParams.get('mode') || 'git';
           if (!b1 || !b2 || !file || !oldFile) {
             sendError(res, 400, 'Missing b1, b2, or file query params');
             return;
@@ -790,7 +830,7 @@ export function startServer(options: ServerOptions): Promise<ServerResult> {
         if (pathname === '/api/config' && req.method === 'GET') {
           const b1 = url.searchParams.get('b1') || branch1 || '';
           const b2 = url.searchParams.get('b2') || branch2 || '';
-          const configMode = url.searchParams.get('mode') || diffMode || 'file';
+          const configMode = url.searchParams.get('mode') || diffMode || 'git';
           sendJson(res, {
             branch1: b1,
             branch2: b2,
