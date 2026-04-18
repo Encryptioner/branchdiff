@@ -646,6 +646,22 @@ export function startServer(options: ServerOptions): Promise<ServerResult> {
             files = compareBranches(b1, b2);
           }
 
+          const numstatOut = await gitAsync(['diff', '--numstat', b1, b2]);
+          const filePaths = new Set(files.map(f => f.path));
+          let totalAdditions = 0;
+          let totalDeletions = 0;
+          for (const line of numstatOut.split('\n')) {
+            if (!line.trim()) continue;
+            const parts = line.split('\t');
+            if (parts.length < 3) continue;
+            const added = parseInt(parts[0], 10);
+            const deleted = parseInt(parts[1], 10);
+            const path = parts[2];
+            if (!filePaths.has(path) || isNaN(added) || isNaN(deleted)) continue;
+            totalAdditions += added;
+            totalDeletions += deleted;
+          }
+
           sendJson(res, {
             files,
             total: files.length,
@@ -654,6 +670,7 @@ export function startServer(options: ServerOptions): Promise<ServerResult> {
               modified: files.filter(f => f.status === 'modified').length,
               deleted: files.filter(f => f.status === 'deleted').length,
             },
+            lineStats: { additions: totalAdditions, deletions: totalDeletions },
           });
           return;
         }
