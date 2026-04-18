@@ -86,7 +86,7 @@ jobs:
 
       - name: Configure npm auth
         run: |
-          cat << 'EOF' > "$HOME/.npmrc"
+          cat << EOF > "$HOME/.npmrc"
           //registry.npmjs.org/:_authToken=${NPM_TOKEN}
           EOF
         env:
