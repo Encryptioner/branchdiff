@@ -11,6 +11,9 @@
 - Git operations via raw CLI exec (no library)
 - Comments stored in SQLite via better-sqlite3
 
+## pnpm Configuration
+- **`.npmrc`** contains `shamefully-hoist=true` — required for @branchdiff/ui build to resolve `@branchdiff/parser`. This flattens node_modules to root level (npm behavior). npm will warn about this unknown option, but it's safe to ignore — pnpm needs this setting.
+
 ## Key Patterns
 - `@branchdiff/*` package namespace
 - ESM throughout (type: module)
