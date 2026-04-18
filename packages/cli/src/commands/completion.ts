@@ -17,16 +17,19 @@ function ensureDir(dir: string): void {
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 }
 
-function removeOldEvalLine(configFile: string): void {
+function removeOldCompletionLines(configFile: string): void {
   if (!existsSync(configFile)) return;
   const content = readFileSync(configFile, 'utf-8');
-  const marker = '# branchdiff completion';
-  if (!content.includes(marker)) return;
   const lines = content.split('\n');
   const filtered = lines.filter((line) => {
-    if (line.includes(marker)) return false;
-    if (line.trim() === 'eval "$(branchdiff completion zsh)"') return false;
-    if (line.trim() === 'eval "$(branchdiff completion bash)"') return false;
+    const t = line.trim();
+    if (t === '# branchdiff completion') return false;
+    if (t === 'eval "$(branchdiff completion zsh)"') return false;
+    if (t === 'eval "$(branchdiff completion bash)"') return false;
+    if (t.startsWith('fpath+=') && t.includes('.zfunc')) return false;
+    if (t.startsWith('fpath=(') && t.includes('.zfunc')) return false;
+    if (t === 'source ~/.zfunc/_branchdiff') return false;
+    if (t === '[[ -f ~/.zfunc/_branchdiff ]] && source ~/.zfunc/_branchdiff') return false;
     return true;
   });
   writeFileSync(configFile, filtered.join('\n'));
@@ -38,13 +41,13 @@ function installZsh(): void {
   console.log(pc.green(`  Completion installed → ${ZSH_FILE}`));
 
   const zshrc = join(homedir(), '.zshrc');
-  removeOldEvalLine(zshrc);
+  removeOldCompletionLines(zshrc);
 
   if (existsSync(zshrc)) {
     const content = readFileSync(zshrc, 'utf-8');
-    if (!content.includes('.zfunc')) {
-      appendFileSync(zshrc, '\nfpath+=~/.zfunc\n');
-      console.log(pc.dim('  Added fpath+=~/.zfunc to .zshrc'));
+    if (!content.includes('_branchdiff')) {
+      appendFileSync(zshrc, '\n# branchdiff completion\nsource ~/.zfunc/_branchdiff\n');
+      console.log(pc.dim('  Added completion source to .zshrc'));
     }
   }
 
@@ -55,7 +58,7 @@ function installBash(): void {
   ensureDir(BASH_DIR);
   writeFileSync(BASH_FILE, BASH_SCRIPT);
   console.log(pc.green(`  Completion installed → ${BASH_FILE}`));
-  removeOldEvalLine(join(homedir(), '.bashrc'));
+  removeOldCompletionLines(join(homedir(), '.bashrc'));
   console.log(pc.dim('  Restart your shell for completion to activate'));
 }
 
