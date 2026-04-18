@@ -29,6 +29,7 @@ interface ToolbarProps {
   onToggleTheme: () => void;
   onShowHelp: () => void;
   diff?: ParsedDiff;
+  statsLoading?: boolean;
   diffRef?: string;
   threads: CommentThread[];
   onDeleteAllComments: () => void;
@@ -39,8 +40,8 @@ interface ToolbarProps {
   githubDetails?: { prNumber: number; prTitle: string; prUrl: string; prCreatedAt: string; headSha: string; commentCount: number } | null;
   sessionId?: string | null;
   onGitHubPulled?: () => void;
-  diffMode?: 'file' | 'git';
-  onDiffModeChange?: (mode: 'file' | 'git') => void;
+  diffMode?: 'file' | 'git' | 'delta';
+  onDiffModeChange?: (mode: 'file' | 'git' | 'delta') => void;
 }
 
 function extractCodeContext(diff: ParsedDiff | undefined, filePath: string, side: 'old' | 'new', startLine: number, endLine: number): string[] {
@@ -127,6 +128,7 @@ export function Toolbar(props: ToolbarProps) {
     onToggleTheme,
     onShowHelp,
     diff,
+    statsLoading,
     diffRef,
     threads,
     onDeleteAllComments,
@@ -154,6 +156,7 @@ export function Toolbar(props: ToolbarProps) {
   const diffModeOptions = useMemo(() => [
     { value: 'file' as const, label: 'File' },
     { value: 'git' as const, label: 'Git' },
+    { value: 'delta' as const, label: 'Δ' },
   ], []);
 
   return (
@@ -167,6 +170,11 @@ export function Toolbar(props: ToolbarProps) {
           </span>
         )}
         {description && <span className="text-text-muted truncate hidden lg:inline">{description}</span>}
+        {statsLoading && !diff && (
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-bg-tertiary rounded-md text-text-muted shrink-0">
+            <span className="w-3 h-3 border-2 border-text-muted/30 border-t-text-muted rounded-full animate-spin" />
+          </span>
+        )}
         {diff && (
           <span className="inline-flex items-center bg-bg-tertiary rounded-md overflow-hidden text-text-muted shrink-0">
             <span className="px-2 py-0.5">{diff.stats.filesChanged} file{diff.stats.filesChanged !== 1 ? 's' : ''} changed</span>

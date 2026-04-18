@@ -41,6 +41,7 @@ branchdiff main                         # current branch vs main
 branchdiff main feat                    # branch comparison (file-level)
 branchdiff main feat --mode git         # commit-level diff
 branchdiff main feat --mode file        # blob hash comparison (default)
+# Switch to Delta mode (Δ) in the browser UI to compare what each mode reports
 branchdiff origin/stage/prod            # remote refs supported
 branchdiff 1df74cc 3b9a54d              # any two commits (SHAs)
 branchdiff HEAD~3 HEAD                  # relative refs
@@ -103,6 +104,7 @@ branchdiff agent resolve abc123de --summary "Fixed"      # mark thread resolved
 
 - **File-level diff** — compares blob hashes, skips identical content regardless of commit history
 - **Git-level diff** — standard `git diff` when you want commit ancestry semantics
+- **Delta mode (Δ)** — side-by-side comparison of what file mode and git mode each report; highlights files/lines that appear in one mode but not the other
 - **Full-file compare popup** — Bitbucket-style side-by-side full file view per changed file
 - **Browser UI** — React SPA with split/unified views, syntax highlighting (Shiki, ~150 languages, lazy-loaded)
 - **AI-ready review workflow** — any assistant (Claude Code, Cursor, Codex, Copilot, Gemini) can review, comment, and apply fixes via the `branchdiff agent …` CLI and `/api/threads/export`. No plugin required. [See AI guide →](./docs/guideline/AI-REVIEW.md)
@@ -146,6 +148,16 @@ Scenario: both branches add the same comment to server.ts via different commits
 File mode:  no change  (blob hashes identical)
 Git mode:   modified    (commits differ, even though final state matches)
 ```
+
+### Delta mode (Δ) — browser UI only
+
+Toggle the **Δ** button in the toolbar when comparing two branches to see what each mode reports differently:
+
+- **Git-only** (amber) — files/lines that appear in git mode but not file mode; usually commit-path noise
+- **File-only** (blue) — files/lines in file mode but not git mode; rare, worth investigating
+- **Shared** — both modes agree
+
+Click any git-only or file-only file to expand a diff preview showing the actual lines that differ. Useful when you want to spot history noise without toggling back and forth between modes manually.
 
 ## How it works
 

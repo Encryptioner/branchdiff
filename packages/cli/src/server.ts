@@ -115,7 +115,7 @@ interface ServerOptions {
   };
   branch1?: string;
   branch2?: string;
-  mode?: 'file' | 'git';
+  mode?: 'file' | 'git' | 'delta';
 }
 
 function serveStatic(res: ServerResponse, filePath: string) {

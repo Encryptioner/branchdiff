@@ -126,6 +126,18 @@ branchdiff main feature --mode git    # standard git diff (commit-level)
 
 Example: if `main` and `feature` both added the same comment via different commits, `--mode file` reports no change, `--mode git` reports a modification.
 
+### Delta mode (Δ) — browser UI only
+
+When comparing two branches, click the **Δ** toggle in the toolbar to see what file mode and git mode each report differently, side by side:
+
+| Category | Color | Meaning |
+|---|---|---|
+| Git-only | Amber | File appears in git diff but not file diff — usually commit-path noise |
+| File-only | Blue | File appears in file diff but not git diff — investigate further |
+| Shared | Neutral | Both modes agree this file changed |
+
+Click any git-only or file-only file row to expand a preview of the actual changed lines. This lets you quickly identify history noise without manually switching between modes.
+
 ### Review a GitHub PR by URL
 
 ```bash

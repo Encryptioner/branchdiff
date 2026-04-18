@@ -28,7 +28,9 @@
 ## Branch Comparison Modes
 - `mode=file` (default): blob hash comparison via `getBlobMap()` → `compareBranches()` — skips files with identical content regardless of commit ancestry
 - `mode=git`: `git diff b1..b2` (two-dot, tip-vs-tip) — surfaces commit-path noise
+- `mode=delta`: **UI-only** — never sent to the server. Maps to `effectiveApiMode='file'` for the API call. The `DeltaView` component fetches both git and file comparisons in parallel and categorises files as git-only / file-only / shared.
 - API routes: `/api/compare`, `/api/file-diff`, `/api/branches`, `/api/config`
+- `/api/compare` response includes `lineStats: { additions, deletions }` computed via `git diff --numstat b1 b2` server-side — toolbar stats are stable from first render, not accumulated as files lazy-load.
 - `/api/file-diff` returns `{ patch, files, content1, content2 }` — both full file contents are always included, so the client never needs a second round-trip for full-file view.
 - `b1` / `b2` are **any valid git ref**: branch name, commit SHA (short or full), tag, `HEAD~N`, `origin/<branch>`. Validation is `git rev-parse --verify` in `isValidGitRef` (packages/git/src/repo.ts). No branch-only gating anywhere.
 

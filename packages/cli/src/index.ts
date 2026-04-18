@@ -41,7 +41,7 @@ program
   .argument('[refs...]', 'Git refs to diff')
   .option('--base <ref>', 'Base ref to compare from (e.g. main, HEAD~3, v1.0.0)')
   .option('--compare <ref>', 'Ref to compare against base (default: working tree)')
-  .option('--mode <mode>', 'Diff mode: file (blob hash comparison) or git (commit-level)', 'file')
+  .option('--mode <mode>', 'Diff mode: file (blob hash comparison), git (commit-level), or delta (compare both modes)', 'file')
   .option('--port <port>', 'Port to use (default: auto-assigned from 5391)', '5391')
   .option('--no-open', 'Do not open browser automatically')
   .option('--quiet', 'Minimal terminal output')
@@ -68,6 +68,7 @@ Common usage:
 Branch comparison modes:
   --mode file   Compare blob hashes (fast, ignores history noise)
   --mode git    Standard git diff (shows commit-level changes)
+  --mode delta  Side-by-side view of what file vs git mode each report (browser only)
 
 Other commands:
   $ branchdiff tree                         Browse repository files
@@ -192,7 +193,7 @@ range syntax (main..feature, main...feature) also work.`)
       }
     }
 
-    const mode = opts.mode === 'git' ? 'git' : 'file';
+    const mode = opts.mode === 'git' ? 'git' : opts.mode === 'delta' ? 'delta' : 'file';
     const diffArgs: string[] = [];
     let description = '';
     let branch1: string | undefined;
@@ -209,7 +210,9 @@ range syntax (main..feature, main...feature) also work.`)
           branch1 = currentBranch;
           branch2 = ref;
           diffArgs.push(normalizeRef(`${currentBranch}..${ref}`));
-          description = mode === 'file'
+          description = mode === 'delta'
+            ? `${currentBranch} ↔ ${ref} (delta)`
+            : mode === 'file'
             ? `${currentBranch} ↔ ${ref} (file-level)`
             : `${currentBranch}..${ref}`;
         } else {
@@ -223,7 +226,9 @@ range syntax (main..feature, main...feature) also work.`)
       if (mode === 'git') {
         diffArgs.push(normalizeRef(`${refs[0]}..${refs[1]}`));
       }
-      description = mode === 'file'
+      description = mode === 'delta'
+        ? `${refs[0]} ↔ ${refs[1]} (delta)`
+        : mode === 'file'
         ? `${refs[0]} ↔ ${refs[1]} (file-level)`
         : `${refs[0]}..${refs[1]}`;
     } else {

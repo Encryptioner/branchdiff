@@ -25,7 +25,7 @@ _branchdiff() {
     '*::arg:->rest' \
     '--base[Base ref]:ref:->ref' \
     '--compare[Compare ref]:ref:->ref' \
-    '--mode[Diff mode]:mode:(file git)' \
+    '--mode[Diff mode]:mode:(file git delta)' \
     '--port[Port]:port:' \
     '--no-open[Do not open browser]' \
     '--quiet[Minimal output]' \
@@ -39,7 +39,8 @@ _branchdiff() {
       _describe 'branch' branches
       ;;
     second)
-      case $words[1] in
+      # $words[2] is the first positional arg already typed
+      case $words[2] in
         completion) _values 'action' 'install[Auto-install]' 'zsh[Print zsh script]' 'bash[Print bash script]' ;;
         tree|list|kill|prune|update|doctor|open) ;;
         *) _describe 'branch' branches ;;

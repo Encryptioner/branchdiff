@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useLoaderData } from 'react-router';
-import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { useDiff } from '../../hooks/use-diff';
 import { useBranchComparison } from '../../hooks/use-branch-comparison';
 import { branchCommitsOptions, fileDiffOptions } from '../../queries/branch-comparison';
@@ -21,6 +21,7 @@ import { type ViewMode, getFilePath, getAutoCollapsedPaths } from '../../lib/dif
 import { buildFirstOpenThreadByFile, buildThreadCountsByFile } from '../../lib/comment-navigation';
 import { getHunkHeaders, scrollToElement } from '../../lib/dom-utils';
 import { fetchGitHubDetails, type GitHubDetails } from '../../lib/api';
+import { DeltaView } from './delta-view';
 import type { LineSelection } from '../comments/types';
 import type { DiffFile } from '@branchdiff/parser';
 
@@ -31,7 +32,7 @@ export function DiffPage() {
     view: 'split' | 'unified' | null;
     b1: string | null;
     b2: string | null;
-    mode: 'file' | 'git';
+    mode: 'file' | 'git' | 'delta';
   }>();
 
   const { ref: refParam, theme: initialTheme, view: initialViewMode, b1, b2, mode: initialMode } = loaderData;
@@ -42,11 +43,11 @@ export function DiffPage() {
   const [showFullDiff, setShowFullDiff] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   // Mode as local state so switching is instant — URL synced via replaceState to avoid loader re-run
-  const [mode, setMode] = useState<'file' | 'git'>(initialMode || 'file');
+  const [mode, setMode] = useState<'file' | 'git' | 'delta'>(initialMode || 'file');
   const { theme, toggleTheme } = useTheme(initialTheme);
   const queryClient = useQueryClient();
 
-  const handleDiffModeChange = useCallback((newMode: 'file' | 'git') => {
+  const handleDiffModeChange = useCallback((newMode: 'file' | 'git' | 'delta') => {
     setMode(newMode);
     const params = new URLSearchParams(window.location.search);
     params.set('mode', newMode);
@@ -55,15 +56,18 @@ export function DiffPage() {
 
   // Regular diff or branch comparison mode
   const regularDiff = useDiff(hideWhitespace, refParam);
-  const branchDiff = useBranchComparison(b1!, b2!, mode);
+  // 'delta' is UI-only — map to 'file' for the API. Must match the key used in the loader's prefetchQuery.
+  const effectiveApiMode = mode === 'delta' ? 'file' : mode;
+  const branchDiff = useBranchComparison(b1!, b2!, effectiveApiMode as 'file' | 'git');
 
   const { data: info } = useInfo(refParam);
 
   // Branch commits (only fetched in branch comparison mode)
-  const branchCommitsResult = isBranchComparison
-    ? useSuspenseQuery(branchCommitsOptions(b1!, b2!))
-    : null;
-  const branchCommits = branchCommitsResult?.data?.commits;
+  const { data: branchCommitsData } = useQuery({
+    ...branchCommitsOptions(b1 ?? '', b2 ?? ''),
+    enabled: isBranchComparison,
+  });
+  const branchCommits = branchCommitsData?.commits;
 
   // Per-file diff data (populated lazily as files come into viewport)
   const [fileDiffs, setFileDiffs] = useState<Map<string, DiffFile>>(new Map());
@@ -128,14 +132,11 @@ export function DiffPage() {
           } as DiffFile;
         });
 
-        const stats = normalizedFiles.reduce(
-          (acc, file) => ({
-            totalAdditions: acc.totalAdditions + file.additions,
-            totalDeletions: acc.totalDeletions + file.deletions,
-            filesChanged: branchData.total,
-          }),
-          { totalAdditions: 0, totalDeletions: 0, filesChanged: branchData.total }
-        );
+        const stats = {
+          totalAdditions: branchData.lineStats?.additions ?? 0,
+          totalDeletions: branchData.lineStats?.deletions ?? 0,
+          filesChanged: branchData.total,
+        };
 
         return {
           files: normalizedFiles,
@@ -462,7 +463,8 @@ export function DiffPage() {
         theme={theme}
         onToggleTheme={toggleTheme}
         onShowHelp={() => setShowHelp(true)}
-        diff={diff || undefined}
+        diff={mode === 'delta' ? undefined : (diff || undefined)}
+        statsLoading={isBranchComparison && branchDiff.isLoading}
         diffRef={refParam}
         threads={threads}
         onDeleteAllComments={commentActions.deleteAllThreads}
@@ -478,18 +480,22 @@ export function DiffPage() {
       />
       {isStale && <StaleDiffBanner onRefresh={handleRefreshDiff} />}
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar
-          files={diff?.files || []}
-          activeFile={activeFile}
-          reviewedFiles={reviewedFiles}
-          commentCountsByFile={commentCountsByFile}
-          onFileClick={handleSidebarFileClick}
-          onCommentedFileClick={handleSidebarCommentedFileClick}
-          branchCommits={isBranchComparison ? branchCommits : undefined}
-          b1={isBranchComparison ? b1 ?? undefined : undefined}
-          b2={isBranchComparison ? b2 ?? undefined : undefined}
-        />
-        {diff ? (
+        {mode !== 'delta' && (
+          <Sidebar
+            files={diff?.files || []}
+            activeFile={activeFile}
+            reviewedFiles={reviewedFiles}
+            commentCountsByFile={commentCountsByFile}
+            onFileClick={handleSidebarFileClick}
+            onCommentedFileClick={handleSidebarCommentedFileClick}
+            branchCommits={isBranchComparison ? branchCommits : undefined}
+            b1={isBranchComparison ? b1 ?? undefined : undefined}
+            b2={isBranchComparison ? b2 ?? undefined : undefined}
+          />
+        )}
+        {mode === 'delta' && isBranchComparison && b1 && b2 ? (
+          <DeltaView b1={b1} b2={b2} />
+        ) : diff ? (
           <DiffView
             diff={diff}
             viewMode={viewMode}
@@ -513,7 +519,7 @@ export function DiffPage() {
             pendingSelection={pendingSelection}
             onPendingSelectionChange={setPendingSelection}
             showFullDiff={showFullDiff}
-            branchCompare={isBranchComparison && b1 && b2 ? { b1, b2, mode } : undefined}
+            branchCompare={isBranchComparison && b1 && b2 ? { b1, b2, mode: effectiveApiMode } : undefined}
             onRequestFileDiffs={isBranchComparison ? requestFileDiffs : undefined}
           />
         ) : null}

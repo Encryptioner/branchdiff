@@ -14,24 +14,27 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
   const view = url.searchParams.get("view") as "split" | "unified" | null;
   const b1 = url.searchParams.get("b1");
   const b2 = url.searchParams.get("b2");
-  const mode = url.searchParams.get("mode") as "file" | "git" | null;
+  const mode = url.searchParams.get("mode") as "file" | "git" | "delta" | null;
 
   const isBranchComparison = !!(b1 && b2);
 
+  // Only await repoInfo (fast, needed for toolbar name on first paint).
+  // Everything else prefetches in the background — components handle their own loading states.
   if (isBranchComparison) {
-    await Promise.all([
-      queryClient.ensureQueryData(branchComparisonOptions(b1, b2, mode ?? undefined)),
-      queryClient.ensureQueryData(repoInfoOptions(ref)),
-      queryClient.ensureQueryData(branchCommitsOptions(b1, b2)),
-    ]);
+    if (mode === 'delta') {
+      queryClient.prefetchQuery(branchComparisonOptions(b1, b2, 'file'));
+      queryClient.prefetchQuery(branchComparisonOptions(b1, b2, 'git'));
+    } else {
+      queryClient.prefetchQuery(branchComparisonOptions(b1, b2, mode ?? 'file'));
+    }
+    queryClient.prefetchQuery(branchCommitsOptions(b1, b2));
   } else {
-    await Promise.all([
-      queryClient.ensureQueryData(diffOptions(false, ref)),
-      queryClient.ensureQueryData(repoInfoOptions(ref)),
-    ]);
+    queryClient.prefetchQuery(diffOptions(false, ref));
   }
 
-  return { ref, theme, view, b1: b1 ?? null, b2: b2 ?? null, mode: mode ?? "file" };
+  await queryClient.ensureQueryData(repoInfoOptions(ref));
+
+  return { ref, theme, view, b1: b1 ?? null, b2: b2 ?? null, mode: (mode ?? "file") as "file" | "git" | "delta" };
 }
 
 export default function DiffRoute({ loaderData }: Route.ComponentProps) {

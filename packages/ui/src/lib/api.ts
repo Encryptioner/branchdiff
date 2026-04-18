@@ -324,6 +324,10 @@ export interface BranchComparison {
     modified: number;
     deleted: number;
   };
+  lineStats: {
+    additions: number;
+    deletions: number;
+  };
 }
 
 export interface FileDiff {
